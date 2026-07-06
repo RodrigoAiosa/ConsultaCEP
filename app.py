@@ -671,24 +671,4 @@ with tab_faixa:
     if st.button("Gerar tabela de bairros", key="btn_faixa"):
         st.info("🔍 Buscando bairros...")
 
-# ============================================================================
-# FEATURES ROW - CARDS EM DESTAQUE
-# ============================================================================
 
-st.markdown("""
-<div class="features-row">
-    <div class="feature-box">
-        <span class="icon">⚡</span>
-        <div class="label">Rápido e direto</div>
-        <div class="description">Resultados em segundos</div>
-    </div>
-    <div class="feature-box">
-        <span class="icon">🔒</span>
-        <div class="label">Privacidade total</div>
-        <div class="description">Sem cadastro ou dados salvos</div>
-    </div>
-</div>
-<div class="footnote">
-    BuscaCEP — Dados fornecidos pela API pública ViaCEP
-</div>
-""", unsafe_allow_html=True)
