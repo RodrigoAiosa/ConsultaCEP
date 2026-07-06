@@ -989,14 +989,6 @@ with tab_faixa:
                     csv_buffer = io.StringIO()
                     df_bairros.to_csv(csv_buffer, index=False, sep=';', encoding='utf-8')
                     csv_content = csv_buffer.getvalue().encode('utf-8')
-                    
-                    st.download_button(
-                        label="⬇️ Baixar tabela de bairros (.csv)",
-                        data=csv_content,
-                        file_name=f"bairros_faixa_{cep_ini:05d}_{cep_fim:05d}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv; charset=utf-8",
-                        use_container_width=True,
-                    )
 
 # ============================================================================
 # FEATURES ROW
