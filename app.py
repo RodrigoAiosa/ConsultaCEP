@@ -70,21 +70,21 @@ st.markdown(
 )
 
 # ----------------------------------------------------------------------------
-# ABAS — envolvidas em um "tool card" que eleva a ferramenta como o produto
-# (st.container com key vira <div class="st-key-tool_card">, ver styles.css)
+# ABAS
+# (o "tool card" agora é aplicado direto no wrapper nativo das abas via CSS —
+# ver div[data-testid="stTabs"] em styles.css — sem depender de st.container(key=))
 # ----------------------------------------------------------------------------
-with st.container(key="tool_card"):
-    tab_individual, tab_lote, tab_faixa = st.tabs([
-        "🔍 Busca individual",
-        "📂 Busca em lote (planilha)",
-        "🏘️ Bairros por faixa de CEP",
-    ])
+tab_individual, tab_lote, tab_faixa = st.tabs([
+    "🔍 Busca individual",
+    "📂 Busca em lote (planilha)",
+    "🏘️ Bairros por faixa de CEP",
+])
 
-    with tab_individual:
-        individual_search.render()
+with tab_individual:
+    individual_search.render()
 
-    with tab_lote:
-        batch_search.render()
+with tab_lote:
+    batch_search.render()
 
-    with tab_faixa:
-        cep_range.render()
+with tab_faixa:
+    cep_range.render()
