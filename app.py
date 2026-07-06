@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).parent
 st.set_page_config(
     page_title=APP_TITLE,
     page_icon=APP_ICON,
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="collapsed",
 )
 
@@ -44,6 +44,10 @@ carregar_css(BASE_DIR / "assets" / "styles.css")
 # HERO / LANDING
 # ----------------------------------------------------------------------------
 st.markdown(
+    '<div class="hero-badge">📍 Feito com dados oficiais dos Correios</div>',
+    unsafe_allow_html=True,
+)
+st.markdown(
     '<div class="hero-title">Encontre qualquer<br><span>endereço do Brasil</span></div>',
     unsafe_allow_html=True,
 )
@@ -52,21 +56,35 @@ st.markdown(
     'ou envie uma planilha inteira e baixe tudo processado em .csv.</div>',
     unsafe_allow_html=True,
 )
+st.markdown(
+    """
+    <div class="trust-row">
+        <span class="trust-chip">⚡ Resultado em segundos</span>
+        <span class="trust-chip">🔓 Sem cadastro</span>
+        <span class="trust-chip">💸 100% gratuito</span>
+        <span class="trust-chip">📊 Exporta em .csv</span>
+        <span class="trust-chip">🗺️ Mapa incluso</span>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ----------------------------------------------------------------------------
-# ABAS
+# ABAS — envolvidas em um "tool card" que eleva a ferramenta como o produto
+# (st.container com key vira <div class="st-key-tool_card">, ver styles.css)
 # ----------------------------------------------------------------------------
-tab_individual, tab_lote, tab_faixa = st.tabs([
-    "🔍 Busca individual",
-    "📂 Busca em lote (planilha)",
-    "🏘️ Bairros por faixa de CEP",
-])
+with st.container(key="tool_card"):
+    tab_individual, tab_lote, tab_faixa = st.tabs([
+        "🔍 Busca individual",
+        "📂 Busca em lote (planilha)",
+        "🏘️ Bairros por faixa de CEP",
+    ])
 
-with tab_individual:
-    individual_search.render()
+    with tab_individual:
+        individual_search.render()
 
-with tab_lote:
-    batch_search.render()
+    with tab_lote:
+        batch_search.render()
 
-with tab_faixa:
-    cep_range.render()
+    with tab_faixa:
+        cep_range.render()
