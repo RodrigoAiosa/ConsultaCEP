@@ -1,5 +1,5 @@
-streamlit>=1.36
-requests>=2.31
-pydeck>=0.9
-pandas>=2.0
-openpyxl>=3.1
+streamlit
+requests
+pydeck
+pandas
+openpyxl
