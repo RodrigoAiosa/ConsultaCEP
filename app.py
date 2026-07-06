@@ -833,14 +833,6 @@ with tab_lote:
                     
                     # Pega o conteúdo e converte para bytes com UTF-8
                     csv_content = csv_buffer.getvalue().encode('utf-8')
-                    
-                    st.download_button(
-                        label="⬇️ Baixar resultados (.csv)",
-                        data=csv_content,
-                        file_name=f"ceps_processados_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv; charset=utf-8",
-                        use_container_width=True,
-                    )
 
 # ============================================================================
 # Aba 3: Bairros por Faixa
