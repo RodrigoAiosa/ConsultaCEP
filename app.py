@@ -976,15 +976,6 @@ with tab_faixa:
                     # Mostra a tabela completa
                     st.dataframe(df_bairros, use_container_width=True, hide_index=True)
                     
-                    # Seção de download
-                    st.markdown("""
-                    <div class="download-section">
-                        <p style="color: #94a3b8; margin-bottom: 1rem; font-size: 0.95rem;">
-                            📥 Baixe a tabela de bairros em formato CSV
-                        </p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
                     # Download do CSV
                     csv_buffer = io.StringIO()
                     df_bairros.to_csv(csv_buffer, index=False, sep=';', encoding='utf-8')
