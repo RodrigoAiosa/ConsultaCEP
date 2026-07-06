@@ -1,11 +1,14 @@
 """
 BuscaCEP — Consulta de Endereços
-Versão com design premium e full-width
+Versão com processamento em lote e exportação CSV
 """
 import streamlit as st
 import requests
 import re
-from typing import Optional
+import pandas as pd
+import io
+import time
+from typing import Optional, List, Dict
 
 # ============================================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -13,7 +16,7 @@ from typing import Optional
 st.set_page_config(
     page_title="BuscaCEP | Consulta de Endereços",
     page_icon="📍",
-    layout="wide",  # <-- Largura total
+    layout="wide",
     initial_sidebar_state="collapsed",
 )
 
@@ -44,7 +47,7 @@ st.markdown("""
         padding-bottom: 2rem !important;
         padding-left: 3rem !important;
         padding-right: 3rem !important;
-        max-width: 100% !important;  /* <-- Largura total */
+        max-width: 100% !important;
         position: relative !important;
         z-index: 1 !important;
     }
@@ -135,7 +138,7 @@ st.markdown("""
         line-height: 1.7 !important;
     }
     
-    /* ===== TRUST ROW - CARDS MELHORADOS ===== */
+    /* ===== TRUST ROW ===== */
     .trust-row {
         display: flex !important;
         flex-wrap: wrap !important;
@@ -174,7 +177,7 @@ st.markdown("""
         font-size: 1.1rem !important;
     }
     
-    /* ===== TOOL CARD - PRINCIPAL ===== */
+    /* ===== TOOL CARD ===== */
     div[data-testid="stTabs"] {
         background: linear-gradient(160deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.5)) !important;
         border: 1px solid rgba(148, 163, 184, 0.12) !important;
@@ -270,7 +273,7 @@ st.markdown("""
         transform: translateY(0) !important;
     }
     
-    /* ===== RESULT CARD - DESTAQUE ===== */
+    /* ===== RESULT CARD ===== */
     .result-card {
         background: linear-gradient(160deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6)) !important;
         border: 1px solid rgba(56, 189, 248, 0.15) !important;
@@ -288,7 +291,6 @@ st.markdown("""
         overflow: hidden !important;
     }
     
-    /* Brilho sutil no card de resultado */
     .result-card::before {
         content: "" !important;
         position: absolute !important;
@@ -366,7 +368,46 @@ st.markdown("""
         font-variant-numeric: tabular-nums !important;
     }
     
-    /* ===== FEATURES ROW - CARDS EM DESTAQUE ===== */
+    /* ===== BATCH RESULT ===== */
+    .batch-result-container {
+        margin-top: 1.5rem !important;
+    }
+    
+    .batch-stats {
+        display: flex !important;
+        gap: 1.5rem !important;
+        flex-wrap: wrap !important;
+        margin-bottom: 1.5rem !important;
+        padding: 1rem 1.5rem !important;
+        background: rgba(15, 23, 42, 0.5) !important;
+        border-radius: 14px !important;
+        border: 1px solid rgba(148, 163, 184, 0.08) !important;
+    }
+    
+    .batch-stat-item {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        color: #cbd5e1 !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .batch-stat-item .number {
+        font-weight: 700 !important;
+        color: #f8fafc !important;
+        font-size: 1.1rem !important;
+    }
+    
+    .download-section {
+        margin-top: 1.5rem !important;
+        padding: 1.5rem !important;
+        background: rgba(56, 189, 248, 0.05) !important;
+        border: 1px solid rgba(56, 189, 248, 0.15) !important;
+        border-radius: 14px !important;
+        text-align: center !important;
+    }
+    
+    /* ===== FEATURES ROW ===== */
     .features-row {
         display: grid !important;
         grid-template-columns: repeat(3, 1fr) !important;
@@ -461,6 +502,11 @@ st.markdown("""
         .result-card {
             padding: 1.5rem !important;
         }
+        
+        .batch-stats {
+            flex-direction: column !important;
+            gap: 0.5rem !important;
+        }
     }
     
     @media (min-width: 769px) and (max-width: 1024px) {
@@ -477,7 +523,7 @@ st.markdown("""
 
 def limpar_cep(cep: str) -> str:
     """Remove caracteres não numéricos do CEP"""
-    return re.sub(r'\D', '', cep or '')
+    return re.sub(r'\D', '', str(cep or '')).strip()
 
 def buscar_cep(cep: str) -> Optional[dict]:
     """Busca CEP na ViaCEP"""
@@ -517,8 +563,94 @@ def montar_endereco(dados: dict) -> str:
     
     return endereco
 
+def processar_ceps(ceps: List[str]) -> pd.DataFrame:
+    """Processa uma lista de CEPs e retorna um DataFrame com os resultados"""
+    resultados = []
+    total = len(ceps)
+    
+    progress_bar = st.progress(0, text="Iniciando processamento...")
+    status_text = st.empty()
+    
+    for i, cep in enumerate(ceps):
+        cep_limpo = limpar_cep(cep)
+        status_text.text(f"Processando {i+1}/{total}: {cep_limpo}")
+        
+        if len(cep_limpo) != 8:
+            resultados.append({
+                "CEP": cep,
+                "Endereço Completo": "",
+                "Logradouro": "",
+                "Bairro": "",
+                "Cidade": "",
+                "Estado": "",
+                "DDD": "",
+                "IBGE": "",
+                "Status": "❌ Inválido"
+            })
+        else:
+            dados = buscar_cep(cep_limpo)
+            
+            if dados:
+                resultados.append({
+                    "CEP": dados.get("cep", cep_limpo),
+                    "Endereço Completo": montar_endereco(dados),
+                    "Logradouro": dados.get("logradouro", ""),
+                    "Bairro": dados.get("bairro", ""),
+                    "Cidade": dados.get("localidade", ""),
+                    "Estado": dados.get("uf", ""),
+                    "DDD": dados.get("ddd", ""),
+                    "IBGE": dados.get("ibge", ""),
+                    "Status": "✅ Encontrado"
+                })
+            else:
+                resultados.append({
+                    "CEP": cep_limpo,
+                    "Endereço Completo": "",
+                    "Logradouro": "",
+                    "Bairro": "",
+                    "Cidade": "",
+                    "Estado": "",
+                    "DDD": "",
+                    "IBGE": "",
+                    "Status": "❌ Não encontrado"
+                })
+        
+        # Atualiza progresso
+        progress_bar.progress((i + 1) / total, text=f"Processando {i+1}/{total}")
+        time.sleep(0.05)  # Pequena pausa para não sobrecarregar a API
+    
+    status_text.empty()
+    progress_bar.empty()
+    
+    return pd.DataFrame(resultados)
+
+def ler_planilha(arquivo) -> List[str]:
+    """Lê uma planilha e extrai os CEPs"""
+    try:
+        if arquivo.name.endswith('.csv'):
+            df = pd.read_csv(arquivo, dtype=str)
+        else:
+            df = pd.read_excel(arquivo, dtype=str)
+        
+        # Procura coluna de CEP
+        coluna_cep = None
+        for col in df.columns:
+            if 'cep' in str(col).lower():
+                coluna_cep = col
+                break
+        
+        if coluna_cep is None:
+            coluna_cep = df.columns[0]
+        
+        # Extrai CEPs
+        ceps = df[coluna_cep].dropna().astype(str).tolist()
+        return ceps
+    except Exception as e:
+        st.error(f"Erro ao ler planilha: {e}")
+        return []
+
 # ============================================================================
-# FUNÇÃO PARA RENDERIZAR O RESULTADO
+# FUNÇÃO PARA RENDERIZAR O RESULTADO INDIVIDUAL
 # ============================================================================
 
 def renderizar_resultado(dados: dict):
@@ -554,7 +686,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Trust Row SEM o "🗺️ Mapa incluso"
+# Trust Row
 st.markdown("""
 <div class="trust-row">
     <span class="trust-chip"><span class="icon">⚡</span> Resultado em segundos</span>
@@ -615,24 +747,92 @@ with tab_lote:
         "Planilha de CEPs", 
         type=["csv", "xlsx", "xls"], 
         label_visibility="collapsed",
+        key="batch_uploader"
     )
     
     if arquivo is not None:
         st.info(f"📄 Arquivo carregado: {arquivo.name}")
         
-        # Preview do arquivo
+        # Lê e mostra preview
         try:
-            import pandas as pd
-            if arquivo.name.endswith('.csv'):
-                df_preview = pd.read_csv(arquivo, nrows=5)
+            ceps = ler_planilha(arquivo)
+            if ceps:
+                st.caption(f"📊 {len(ceps)} CEP(s) encontrados na planilha")
+                
+                # Preview dos CEPs
+                preview_df = pd.DataFrame({"CEP": ceps[:10]})
+                st.dataframe(preview_df, use_container_width=True, hide_index=True)
+                
+                if len(ceps) > 10:
+                    st.caption(f"... e mais {len(ceps) - 10} CEP(s)")
             else:
-                df_preview = pd.read_excel(arquivo, nrows=5)
-            st.dataframe(df_preview, use_container_width=True)
+                st.warning("⚠️ Nenhum CEP encontrado na planilha.")
         except Exception as e:
             st.error(f"Erro ao ler arquivo: {e}")
         
-        if st.button("Processar planilha", key="btn_lote"):
-            st.success("✅ Processamento concluído!")
+        # Botão para processar
+        if st.button("🚀 Processar planilha", key="btn_lote", use_container_width=True):
+            # Recria o arquivo para processamento (o streamlit recria o objeto)
+            if arquivo is not None:
+                # Lê novamente os CEPs
+                arquivo.seek(0)
+                ceps = ler_planilha(arquivo)
+                
+                if not ceps:
+                    st.warning("⚠️ Nenhum CEP encontrado para processar.")
+                else:
+                    # Processa os CEPs
+                    with st.spinner(f"Processando {len(ceps)} CEPs..."):
+                        df_resultado = processar_ceps(ceps)
+                    
+                    # Estatísticas
+                    encontrados = len(df_resultado[df_resultado['Status'] == '✅ Encontrado'])
+                    nao_encontrados = len(df_resultado[df_resultado['Status'] == '❌ Não encontrado'])
+                    invalidos = len(df_resultado[df_resultado['Status'] == '❌ Inválido'])
+                    
+                    # Mostra estatísticas
+                    st.markdown(f"""
+                    <div class="batch-result-container">
+                        <div class="batch-stats">
+                            <div class="batch-stat-item">
+                                📊 Total: <span class="number">{len(df_resultado)}</span>
+                            </div>
+                            <div class="batch-stat-item">
+                                ✅ Encontrados: <span class="number">{encontrados}</span>
+                            </div>
+                            <div class="batch-stat-item">
+                                ❌ Não encontrados: <span class="number">{nao_encontrados}</span>
+                            </div>
+                            <div class="batch-stat-item">
+                                ⚠️ Inválidos: <span class="number">{invalidos}</span>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Mostra o DataFrame completo
+                    st.dataframe(df_resultado, use_container_width=True, hide_index=True)
+                    
+                    # Seção de download
+                    st.markdown("""
+                    <div class="download-section">
+                        <p style="color: #94a3b8; margin-bottom: 1rem; font-size: 0.95rem;">
+                            📥 Baixe o resultado completo em formato CSV
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Botão de download
+                    csv_buffer = io.StringIO()
+                    df_resultado.to_csv(csv_buffer, index=False, sep=';', encoding='utf-8-sig')
+                    
+                    st.download_button(
+                        label="⬇️ Baixar resultados (.csv)",
+                        data=csv_buffer.getvalue(),
+                        file_name=f"ceps_processados_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
 
 # --- Aba 3: Bairros por Faixa ---
 with tab_faixa:
@@ -671,4 +871,29 @@ with tab_faixa:
     if st.button("Gerar tabela de bairros", key="btn_faixa"):
         st.info("🔍 Buscando bairros...")
 
+# ============================================================================
+# FEATURES ROW
+# ============================================================================
 
+st.markdown("""
+<div class="features-row">
+    <div class="feature-box">
+        <span class="icon">⚡</span>
+        <div class="label">Rápido e direto</div>
+        <div class="description">Resultados em segundos</div>
+    </div>
+    <div class="feature-box">
+        <span class="icon">🔒</span>
+        <div class="label">Privacidade total</div>
+        <div class="description">Sem cadastro ou dados salvos</div>
+    </div>
+    <div class="feature-box">
+        <span class="icon">📦</span>
+        <div class="label">Dados oficiais</div>
+        <div class="description">Direto da API dos Correios</div>
+    </div>
+</div>
+<div class="footnote">
+    BuscaCEP — Dados fornecidos pela API pública ViaCEP
+</div>
+""", unsafe_allow_html=True)
