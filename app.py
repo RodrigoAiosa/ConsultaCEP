@@ -826,4 +826,201 @@ with tab_lote:
                 ceps = ler_planilha(arquivo)
                 
                 if not ceps:
-                    st.warning("⚠
+                    st.warning("⚠️ Nenhum CEP encontrado para processar.")
+                else:
+                    # Processa os CEPs
+                    with st.spinner(f"Processando {len(ceps)} CEPs..."):
+                        df_resultado = processar_ceps(ceps)
+                    
+                    # Estatísticas
+                    encontrados = len(df_resultado[df_resultado['Status'] == '✅ Encontrado'])
+                    nao_encontrados = len(df_resultado[df_resultado['Status'] == '❌ Não encontrado'])
+                    invalidos = len(df_resultado[df_resultado['Status'] == '❌ Inválido'])
+                    
+                    # Mostra estatísticas
+                    st.markdown(f"""
+                    <div class="batch-result-container">
+                        <div class="batch-stats">
+                            <div class="batch-stat-item">
+                                📊 Total: <span class="number">{len(df_resultado)}</span>
+                            </div>
+                            <div class="batch-stat-item">
+                                ✅ Encontrados: <span class="number">{encontrados}</span>
+                            </div>
+                            <div class="batch-stat-item">
+                                ❌ Não encontrados: <span class="number">{nao_encontrados}</span>
+                            </div>
+                            <div class="batch-stat-item">
+                                ⚠️ Inválidos: <span class="number">{invalidos}</span>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Mostra o DataFrame completo
+                    st.dataframe(df_resultado, use_container_width=True, hide_index=True)
+                    
+                    # Seção de download
+                    st.markdown("""
+                    <div class="download-section">
+                        <p style="color: #94a3b8; margin-bottom: 1rem; font-size: 0.95rem;">
+                            📥 Baixe o resultado completo em formato CSV
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Download com UTF-8 correto
+                    csv_buffer = io.StringIO()
+                    df_resultado.to_csv(csv_buffer, index=False, sep=';', encoding='utf-8')
+                    csv_content = csv_buffer.getvalue().encode('utf-8')
+                    
+                    st.download_button(
+                        label="⬇️ Baixar resultados (.csv)",
+                        data=csv_content,
+                        file_name=f"ceps_processados_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv; charset=utf-8",
+                        use_container_width=True,
+                    )
+
+# ============================================================================
+# Aba 3: Bairros por Faixa de CEP (IMPLEMENTADA)
+# ============================================================================
+with tab_faixa:
+    st.markdown(
+        "<p style='color:#94a3b8; margin-bottom:1rem; font-size:0.95rem;'>Escolha uma faixa de CEP (os 5 primeiros dígitos, ex: 01000 a 01999).</p>",
+        unsafe_allow_html=True,
+    )
+    
+    col1, col2, col3 = st.columns([1.3, 1.3, 1])
+    with col1:
+        cep_ini_str = st.text_input(
+            "CEP inicial (5 dígitos)", 
+            value="15230", 
+            max_chars=5, 
+            key="faixa_ini"
+        )
+    with col2:
+        cep_fim_str = st.text_input(
+            "CEP final (5 dígitos)", 
+            value="15239", 
+            max_chars=5, 
+            key="faixa_fim"
+        )
+    with col3:
+        passo = st.number_input(
+            "Passo (amostragem)", 
+            min_value=1, 
+            max_value=200, 
+            value=10, 
+            step=1, 
+            key="faixa_passo",
+            help="Passo menor = mais preciso, porém mais lento"
+        )
+    
+    st.caption("ℹ️ Passo menor = mais preciso, porém mais lento (mais chamadas à API pública). O resultado é uma aproximação por amostragem.")
+    
+    if st.button("🔍 Gerar tabela de bairros", key="btn_faixa", use_container_width=True):
+        # Valida os inputs
+        if not (cep_ini_str.isdigit() and cep_fim_str.isdigit()):
+            st.error("⚠️ Informe apenas números nos campos de CEP inicial/final.")
+        else:
+            cep_ini = int(cep_ini_str)
+            cep_fim = int(cep_fim_str)
+            
+            if cep_ini > cep_fim:
+                st.error("⚠️ O CEP inicial deve ser menor ou igual ao CEP final.")
+            elif cep_ini < 1000 or cep_fim > 99999:
+                st.error("⚠️ Os CEPs devem estar entre 01000 e 99999.")
+            else:
+                # Calcula total de consultas
+                total_consultas = ((cep_fim - cep_ini) // passo) + 1
+                
+                # Limite de segurança para não sobrecarregar a API
+                if total_consultas > 500:
+                    st.warning(f"⚠️ Esta faixa geraria {total_consultas} consultas. O limite máximo é 500.")
+                    passo_ajustado = max(1, (cep_fim - cep_ini) // 500)
+                    st.info(f"ℹ️ Ajustando passo automaticamente para {passo_ajustado} (limite de 500 consultas).")
+                    passo = passo_ajustado
+                    total_consultas = ((cep_fim - cep_ini) // passo) + 1
+                
+                st.info(f"🔍 Buscando bairros na faixa {cep_ini:05d}-000 a {cep_fim:05d}-999 com passo {passo}...")
+                
+                # Busca os bairros
+                with st.spinner(f"Realizando {total_consultas} consultas à API ViaCEP..."):
+                    df_bairros = buscar_bairros_por_faixa(cep_ini, cep_fim, passo)
+                
+                if df_bairros.empty:
+                    st.warning("🔍 Nenhum bairro encontrado nessa faixa. Tente outra faixa de CEP.")
+                else:
+                    # Mostra estatísticas
+                    cidades = df_bairros['Cidade'].nunique()
+                    estados = df_bairros['Estado'].nunique()
+                    bairros = len(df_bairros)
+                    
+                    st.markdown(f"""
+                    <div class="batch-result-container">
+                        <div class="batch-stats">
+                            <div class="batch-stat-item">
+                                🏘️ Bairros: <span class="number">{bairros}</span>
+                            </div>
+                            <div class="batch-stat-item">
+                                🏙️ Cidades: <span class="number">{cidades}</span>
+                            </div>
+                            <div class="batch-stat-item">
+                                📍 Estados: <span class="number">{estados}</span>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Mostra a tabela completa
+                    st.dataframe(df_bairros, use_container_width=True, hide_index=True)
+                    
+                    # Seção de download
+                    st.markdown("""
+                    <div class="download-section">
+                        <p style="color: #94a3b8; margin-bottom: 1rem; font-size: 0.95rem;">
+                            📥 Baixe a tabela de bairros em formato CSV
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Download do CSV
+                    csv_buffer = io.StringIO()
+                    df_bairros.to_csv(csv_buffer, index=False, sep=';', encoding='utf-8')
+                    csv_content = csv_buffer.getvalue().encode('utf-8')
+                    
+                    st.download_button(
+                        label="⬇️ Baixar tabela de bairros (.csv)",
+                        data=csv_content,
+                        file_name=f"bairros_faixa_{cep_ini:05d}_{cep_fim:05d}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        mime="text/csv; charset=utf-8",
+                        use_container_width=True,
+                    )
+
+# ============================================================================
+# FEATURES ROW
+# ============================================================================
+
+st.markdown("""
+<div class="features-row">
+    <div class="feature-box">
+        <span class="icon">⚡</span>
+        <div class="label">Rápido e direto</div>
+        <div class="description">Resultados em segundos</div>
+    </div>
+    <div class="feature-box">
+        <span class="icon">🔒</span>
+        <div class="label">Privacidade total</div>
+        <div class="description">Sem cadastro ou dados salvos</div>
+    </div>
+    <div class="feature-box">
+        <span class="icon">📦</span>
+        <div class="label">Dados oficiais</div>
+        <div class="description">Direto da API dos Correios</div>
+    </div>
+</div>
+<div class="footnote">
+    BuscaCEP — Dados fornecidos pela API pública ViaCEP
+</div>
+""", unsafe_allow_html=True)
