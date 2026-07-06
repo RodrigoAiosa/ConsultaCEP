@@ -1,0 +1,182 @@
+/* ============================================================================
+   BuscaCEP — estilos globais (landing page)
+   ============================================================================ */
+
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header { visibility: hidden; }
+
+.stApp {
+    background: linear-gradient(160deg, #0f172a 0%, #1e293b 45%, #0f172a 100%);
+}
+
+.block-container {
+    padding-top: 3rem;
+    max-width: 780px;
+}
+
+/* ----------------------------------------------------------------------
+   Hero
+   ---------------------------------------------------------------------- */
+.hero-badge {
+    display: inline-block;
+    background: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+}
+
+.hero-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    color: #f8fafc;
+    line-height: 1.15;
+    margin-bottom: 0.6rem;
+    letter-spacing: -0.02em;
+}
+
+.hero-title span {
+    background: linear-gradient(90deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero-subtitle {
+    font-size: 1.05rem;
+    color: #94a3b8;
+    margin-bottom: 2.2rem;
+    max-width: 520px;
+}
+
+/* ----------------------------------------------------------------------
+   Inputs e botões
+   ---------------------------------------------------------------------- */
+div[data-testid="stTextInput"] input {
+    background-color: #1e293b;
+    color: #f8fafc;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    font-size: 1.05rem;
+}
+
+div[data-testid="stTextInput"] input:focus {
+    border: 1px solid #38bdf8;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.stButton > button {
+    background: linear-gradient(90deg, #38bdf8, #6366f1);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0.7rem 1.6rem;
+    font-weight: 700;
+    font-size: 1rem;
+    width: 100%;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+}
+
+/* ----------------------------------------------------------------------
+   Cartão de resultado (busca individual)
+   ---------------------------------------------------------------------- */
+.result-card {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid #334155;
+    border-radius: 18px;
+    padding: 1.8rem 2rem;
+    margin-top: 2rem;
+}
+
+.result-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.full-address-box {
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    color: #e0f2fe;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: 1.3rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: #94a3b8;
+    font-size: 0.92rem;
+}
+
+.info-value {
+    color: #f1f5f9;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-align: right;
+}
+
+/* ----------------------------------------------------------------------
+   Rodapé / features
+   ---------------------------------------------------------------------- */
+.features-row {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2.5rem;
+}
+
+.feature-box {
+    flex: 1;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid #334155;
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.feature-box .icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.feature-box .label {
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.footnote {
+    text-align: center;
+    color: #475569;
+    margin-top: 2.5rem;
+    font-size: 0.8rem;
+}
