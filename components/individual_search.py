@@ -33,18 +33,13 @@ def _renderizar_mapa(dados: dict) -> None:
     with st.spinner("Localizando no mapa..."):
         resultado_geo = geocodificar_com_fallback(dados)
 
-    endereco_label = ", ".join(filter(None, [
-        dados.get("logradouro"), dados.get("bairro"),
-        dados.get("localidade"), dados.get("uf"),
-    ])) or dados.get("cep", "")
-
     if not resultado_geo:
         st.warning("⚠️ Não foi possível localizar este endereço no mapa no momento.")
         return
 
     lat, lon, nivel = resultado_geo
     zoom = ZOOM_POR_NIVEL_PRECISAO.get(nivel, 14)
-    ponto = [{"lat": lat, "lon": lon, "endereco": endereco_label}]
+    ponto = [{"lat": lat, "lon": lon}]
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.pydeck_chart(pdk.Deck(
@@ -59,30 +54,9 @@ def _renderizar_mapa(dados: dict) -> None:
                 get_radius=60,
                 radius_min_pixels=8,
                 radius_max_pixels=20,
-                pickable=True,
-            ),
-            pdk.Layer(
-                "TextLayer",
-                data=ponto,
-                get_position="[lon, lat]",
-                get_text="endereco",
-                get_size=14,
-                get_color="[248, 250, 252, 255]",
-                get_pixel_offset="[0, -22]",
-                get_alignment_baseline="'bottom'",
-                billboard=True,
+                pickable=False,
             ),
         ],
-        tooltip={
-            "html": "<b>📍 {endereco}</b>",
-            "style": {
-                "backgroundColor": "#1e293b",
-                "color": "#f8fafc",
-                "fontSize": "0.85rem",
-                "padding": "6px 10px",
-                "borderRadius": "8px",
-            },
-        },
     ))
 
     if nivel != "rua":
