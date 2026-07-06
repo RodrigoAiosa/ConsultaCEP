@@ -981,29 +981,4 @@ with tab_faixa:
                     df_bairros.to_csv(csv_buffer, index=False, sep=';', encoding='utf-8')
                     csv_content = csv_buffer.getvalue().encode('utf-8')
 
-# ============================================================================
-# FEATURES ROW
-# ============================================================================
 
-st.markdown("""
-<div class="features-row">
-    <div class="feature-box">
-        <span class="icon">⚡</span>
-        <div class="label">Rápido e direto</div>
-        <div class="description">Resultados em segundos</div>
-    </div>
-    <div class="feature-box">
-        <span class="icon">🔒</span>
-        <div class="label">Privacidade total</div>
-        <div class="description">Sem cadastro ou dados salvos</div>
-    </div>
-    <div class="feature-box">
-        <span class="icon">📦</span>
-        <div class="label">Dados oficiais</div>
-        <div class="description">Direto da API dos Correios</div>
-    </div>
-</div>
-<div class="footnote">
-    BuscaCEP — Dados fornecidos pela API pública ViaCEP
-</div>
-""", unsafe_allow_html=True)
