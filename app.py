@@ -250,6 +250,24 @@ def geocodificar_com_fallback(dados: dict):
     return None
 
 
+def montar_endereco_completo(dados: dict) -> str:
+    """Monta uma string única de endereço completo a partir do retorno da ViaCEP."""
+    partes_endereco = [
+        dados.get("logradouro"),
+        dados.get("complemento"),
+        dados.get("bairro"),
+    ]
+    linha1 = ", ".join([p for p in partes_endereco if p])
+
+    partes_local = [dados.get("localidade"), dados.get("uf")]
+    linha2 = " - ".join([p for p in partes_local if p])
+
+    endereco = " - ".join([p for p in [linha1, linha2] if p])
+    if dados.get("cep"):
+        endereco = f"{endereco}, CEP {dados.get('cep')}" if endereco else dados.get("cep")
+    return endereco
+
+
 # ----------------------------------------------------------------------------
 # BUSCA INDIVIDUAL
 # ----------------------------------------------------------------------------
@@ -288,19 +306,7 @@ def _busca_individual():
         st.warning("🔍 CEP não encontrado. Verifique o número digitado.")
         return
 
-    partes_endereco = [
-        dados.get("logradouro"),
-        dados.get("complemento"),
-        dados.get("bairro"),
-    ]
-    linha1 = ", ".join([p for p in partes_endereco if p])
-
-    partes_local = [dados.get("localidade"), dados.get("uf")]
-    linha2 = " - ".join([p for p in partes_local if p])
-
-    endereco_completo = " - ".join([p for p in [linha1, linha2] if p])
-    if dados.get("cep"):
-        endereco_completo = f"{endereco_completo}, CEP {dados.get('cep')}" if endereco_completo else dados.get("cep")
+    endereco_completo = montar_endereco_completo(dados)
 
     st.markdown(f"""
     <div class="result-card">
@@ -430,7 +436,7 @@ def _busca_em_lote():
     st.markdown(
         "<p style='color:#94a3b8; margin-bottom:1rem;'>Envie uma planilha "
         "(.csv ou .xlsx) com uma coluna de CEPs. O app consulta cada um na "
-        "ViaCEP e gera um .csv para download com Bairro, Cidade, Estado, DDD e IBGE.</p>",
+        "ViaCEP e gera um .csv para download com Endereço Completo, Bairro, Cidade, Estado, DDD e IBGE.</p>",
         unsafe_allow_html=True,
     )
 
@@ -461,7 +467,7 @@ def _busca_em_lote():
 
             if len(cep_limpo) != 8:
                 linhas.append({
-                    "CEP": cep_bruto, "Bairro": "", "Cidade": "",
+                    "CEP": cep_bruto, "Endereço Completo": "", "Bairro": "", "Cidade": "",
                     "Estado": "", "DDD": "", "IBGE": "",
                 })
             else:
@@ -473,6 +479,7 @@ def _busca_em_lote():
                 if dados:
                     linhas.append({
                         "CEP": dados.get("cep", cep_limpo),
+                        "Endereço Completo": montar_endereco_completo(dados),
                         "Bairro": dados.get("bairro", "") or "",
                         "Cidade": dados.get("localidade", "") or "",
                         "Estado": dados.get("uf", "") or "",
@@ -481,7 +488,7 @@ def _busca_em_lote():
                     })
                 else:
                     linhas.append({
-                        "CEP": cep_limpo, "Bairro": "", "Cidade": "",
+                        "CEP": cep_limpo, "Endereço Completo": "", "Bairro": "", "Cidade": "",
                         "Estado": "", "DDD": "", "IBGE": "",
                     })
 
@@ -490,7 +497,10 @@ def _busca_em_lote():
 
         barra.empty()
 
-        df_resultado = pd.DataFrame(linhas, columns=["CEP", "Bairro", "Cidade", "Estado", "DDD", "IBGE"])
+        df_resultado = pd.DataFrame(
+            linhas,
+            columns=["CEP", "Endereço Completo", "Bairro", "Cidade", "Estado", "DDD", "IBGE"],
+        )
 
         st.success(f"✅ Processamento concluído! {len(df_resultado)} CEP(s) processados.")
         st.dataframe(df_resultado, use_container_width=True)
