@@ -1,6 +1,6 @@
 """
 BuscaCEP — Consulta de Endereços
-Versão com processamento em lote e exportação CSV
+Versão com processamento em lote e exportação CSV em UTF-8
 """
 import streamlit as st
 import requests
@@ -736,7 +736,9 @@ with tab_individual:
             else:
                 renderizar_resultado(dados)
 
-# --- Aba 2: Busca em Lote ---
+# ============================================================================
+# Aba 2: Busca em Lote (COM UTF-8 CORRETO)
+# ============================================================================
 with tab_lote:
     st.markdown(
         "<p style='color:#94a3b8; margin-bottom:1rem; font-size:0.95rem;'>Envie uma planilha (.csv ou .xlsx) com uma coluna de CEPs.</p>",
@@ -772,7 +774,7 @@ with tab_lote:
         
         # Botão para processar
         if st.button("🚀 Processar planilha", key="btn_lote", use_container_width=True):
-            # Recria o arquivo para processamento (o streamlit recria o objeto)
+            # Recria o arquivo para processamento
             if arquivo is not None:
                 # Lê novamente os CEPs
                 arquivo.seek(0)
@@ -822,19 +824,27 @@ with tab_lote:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Botão de download
+                    # =========================================================
+                    # DOWNLOAD COM UTF-8 CORRETO
+                    # =========================================================
                     csv_buffer = io.StringIO()
-                    df_resultado.to_csv(csv_buffer, index=False, sep=';', encoding='utf-8-sig')
+                    # Salva com UTF-8 padrão e separador ;
+                    df_resultado.to_csv(csv_buffer, index=False, sep=';', encoding='utf-8')
+                    
+                    # Pega o conteúdo e converte para bytes com UTF-8
+                    csv_content = csv_buffer.getvalue().encode('utf-8')
                     
                     st.download_button(
                         label="⬇️ Baixar resultados (.csv)",
-                        data=csv_buffer.getvalue(),
+                        data=csv_content,
                         file_name=f"ceps_processados_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv",
+                        mime="text/csv; charset=utf-8",
                         use_container_width=True,
                     )
 
-# --- Aba 3: Bairros por Faixa ---
+# ============================================================================
+# Aba 3: Bairros por Faixa
+# ============================================================================
 with tab_faixa:
     st.markdown(
         "<p style='color:#94a3b8; margin-bottom:1rem; font-size:0.95rem;'>Escolha uma faixa de CEP (os 5 primeiros dígitos, ex: 01000 a 01999).</p>",
