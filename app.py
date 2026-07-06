@@ -1,212 +1,261 @@
 """
-BuscaCEP — Versão com CSS inline (100% funcional)
+BuscaCEP — ponto de entrada da aplicação Streamlit.
 """
 import streamlit as st
+from pathlib import Path
 
+# Configuração da página DEVE ser a primeira chamada Streamlit
 st.set_page_config(
-    page_title="BuscaCEP",
+    page_title="BuscaCEP | Consulta de Endereços",
     page_icon="📍",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# CSS inline completo
-st.markdown("""
-<style>
-    /* Reset e base */
-    * { 
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
-    }
-    
-    .stApp {
-        background: #0a0e1a !important;
-        position: relative;
-        overflow-x: hidden;
-    }
-    
-    .stApp::before {
-        content: "";
-        position: fixed;
-        inset: 0;
-        z-index: 0;
-        pointer-events: none;
-        background:
-            radial-gradient(680px circle at 12% 8%, rgba(56, 189, 248, 0.16), transparent 60%),
-            radial-gradient(620px circle at 88% 18%, rgba(129, 140, 248, 0.14), transparent 60%),
-            radial-gradient(900px circle at 50% 100%, rgba(56, 189, 248, 0.08), transparent 60%),
-            linear-gradient(180deg, #0a0e1a 0%, #0f1524 45%, #0a0e1a 100%);
-    }
-    
-    .block-container {
-        position: relative !important;
-        z-index: 1 !important;
-        padding-top: 4.5rem !important;
-        padding-bottom: 4rem !important;
-        max-width: 860px !important;
-    }
-    
-    #MainMenu { visibility: hidden; }
-    footer { visibility: hidden; }
-    header { visibility: hidden; }
-    
-    /* Hero */
-    .hero-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(56, 189, 248, 0.10);
-        color: #7dd3fc;
-        border: 1px solid rgba(56, 189, 248, 0.30);
-        padding: 6px 16px;
-        border-radius: 999px;
-        font-size: 0.76rem;
-        font-weight: 600;
-        letter-spacing: 0.03em;
-        margin-bottom: 1.4rem;
-    }
-    
-    .hero-title {
-        font-size: 3.1rem;
-        font-weight: 900;
-        color: #f8fafc;
-        line-height: 1.1;
-        margin-bottom: 0.85rem;
-        letter-spacing: -0.035em;
-    }
-    
-    .hero-title span {
-        background: linear-gradient(90deg, #38bdf8, #818cf8 60%, #a78bfa);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    
-    .hero-subtitle {
-        font-size: 1.12rem;
-        color: #94a3b8;
-        margin-bottom: 1.8rem;
-        max-width: 560px;
-        line-height: 1.65;
-    }
-    
-    .trust-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.55rem;
-        margin-bottom: 2.6rem;
-    }
-    
-    .trust-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(148, 163, 184, 0.06);
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        color: #cbd5e1;
-        padding: 6px 13px;
-        border-radius: 999px;
-        font-size: 0.82rem;
-        font-weight: 500;
-    }
-    
-    /* Tabs */
-    div[data-testid="stTabs"] {
-        background: linear-gradient(180deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.45));
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 24px;
-        padding: 2.1rem 2.2rem 1.6rem;
-        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.04), 0 20px 60px -20px rgba(0, 0, 0, 0.55), 0 8px 24px -8px rgba(56, 189, 248, 0.08);
-        backdrop-filter: blur(14px);
-        margin-bottom: 2.6rem;
-    }
-    
-    /* Inputs */
-    div[data-testid="stTextInput"] input {
-        background-color: rgba(15, 23, 42, 0.6);
-        color: #f8fafc;
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: 0.9rem 1.05rem;
-        font-size: 1.05rem;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    
-    div[data-testid="stTextInput"] input:focus {
-        border: 1px solid #38bdf8;
-        box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
-    }
-    
-    /* Botões */
-    .stButton > button {
-        background: linear-gradient(90deg, #38bdf8, #6366f1) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 0.85rem 1.6rem !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-        width: 100% !important;
-        letter-spacing: -0.01em !important;
-        box-shadow: 0 4px 14px -4px rgba(99, 102, 241, 0.4) !important;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease !important;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 12px 28px -6px rgba(99, 102, 241, 0.5) !important;
-        filter: brightness(1.06) !important;
-    }
-    
-    .features-row {
-        display: flex;
-        gap: 1rem;
-        margin-top: 0.4rem;
-    }
-    
-    .feature-box {
-        flex: 1;
-        background: rgba(30, 41, 59, 0.4);
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 16px;
-        padding: 1.2rem 1rem;
-        text-align: center;
-        transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-    }
-    
-    .feature-box:hover {
-        transform: translateY(-3px);
-        border-color: rgba(56, 189, 248, 0.35);
-        background: rgba(30, 41, 59, 0.6);
-    }
-    
-    .feature-box .icon {
-        font-size: 1.6rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .feature-box .label {
-        color: #cbd5e1;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-    
-    .footnote {
-        text-align: center;
-        color: #475569;
-        margin-top: 2.8rem;
-        font-size: 0.8rem;
-    }
-    
-    @media (max-width: 640px) {
-        .hero-title { font-size: 2.2rem; }
-        .hero-subtitle { font-size: 1rem; }
-        div[data-testid="stTabs"] { padding: 1.4rem 1.2rem 1.1rem; border-radius: 18px; }
-        .features-row { flex-direction: column; }
-    }
-</style>
-""", unsafe_allow_html=True)
+# ============================================================================
+# CARREGAR CSS
+# ============================================================================
+BASE_DIR = Path(__file__).parent
 
-# Hero
+def carregar_css():
+    """Carrega o CSS do arquivo ou usa fallback inline"""
+    css_path = BASE_DIR / "assets" / "styles.css"
+    
+    if css_path.exists():
+        try:
+            css = css_path.read_text(encoding="utf-8")
+            st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+            print(f"✅ CSS carregado de: {css_path}")
+            return True
+        except Exception as e:
+            print(f"❌ Erro ao ler CSS: {e}")
+    
+    # Fallback: CSS inline completo
+    print("⚠️ Usando CSS inline fallback")
+    st.markdown("""
+    <style>
+        /* Reset completo */
+        html, body, .stApp, .main, .block-container {
+            background: #0a0e1a !important;
+            background-color: #0a0e1a !important;
+        }
+        
+        .block-container {
+            padding-top: 4.5rem !important;
+            padding-bottom: 4rem !important;
+            max-width: 860px !important;
+        }
+        
+        #MainMenu { visibility: hidden !important; }
+        footer { visibility: hidden !important; }
+        header { visibility: hidden !important; }
+        
+        .hero-badge {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            background: rgba(56, 189, 248, 0.10) !important;
+            color: #7dd3fc !important;
+            border: 1px solid rgba(56, 189, 248, 0.30) !important;
+            padding: 6px 16px !important;
+            border-radius: 999px !important;
+            font-size: 0.76rem !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.03em !important;
+            margin-bottom: 1.4rem !important;
+        }
+        
+        .hero-title {
+            font-size: 3.1rem !important;
+            font-weight: 900 !important;
+            color: #f8fafc !important;
+            line-height: 1.1 !important;
+            margin-bottom: 0.85rem !important;
+            letter-spacing: -0.035em !important;
+        }
+        
+        .hero-title span {
+            background: linear-gradient(90deg, #38bdf8, #818cf8 60%, #a78bfa) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.12rem !important;
+            color: #94a3b8 !important;
+            margin-bottom: 1.8rem !important;
+            max-width: 560px !important;
+            line-height: 1.65 !important;
+        }
+        
+        .trust-row {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.55rem !important;
+            margin-bottom: 2.6rem !important;
+        }
+        
+        .trust-chip {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            background: rgba(148, 163, 184, 0.06) !important;
+            border: 1px solid rgba(148, 163, 184, 0.16) !important;
+            color: #cbd5e1 !important;
+            padding: 6px 13px !important;
+            border-radius: 999px !important;
+            font-size: 0.82rem !important;
+            font-weight: 500 !important;
+        }
+        
+        div[data-testid="stTabs"] {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.45)) !important;
+            border: 1px solid rgba(148, 163, 184, 0.14) !important;
+            border-radius: 24px !important;
+            padding: 2.1rem 2.2rem 1.6rem !important;
+            box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.04), 0 20px 60px -20px rgba(0, 0, 0, 0.55), 0 8px 24px -8px rgba(56, 189, 248, 0.08) !important;
+            backdrop-filter: blur(14px) !important;
+            -webkit-backdrop-filter: blur(14px) !important;
+            margin-bottom: 2.6rem !important;
+        }
+        
+        .stButton > button {
+            background: linear-gradient(90deg, #38bdf8, #6366f1) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 12px !important;
+            padding: 0.85rem 1.6rem !important;
+            font-weight: 700 !important;
+            font-size: 1rem !important;
+            width: 100% !important;
+            letter-spacing: -0.01em !important;
+            box-shadow: 0 4px 14px -4px rgba(99, 102, 241, 0.4) !important;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease !important;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 12px 28px -6px rgba(99, 102, 241, 0.5) !important;
+            filter: brightness(1.06) !important;
+        }
+        
+        .features-row {
+            display: flex !important;
+            gap: 1rem !important;
+            margin-top: 0.4rem !important;
+        }
+        
+        .feature-box {
+            flex: 1 !important;
+            background: rgba(30, 41, 59, 0.4) !important;
+            border: 1px solid rgba(148, 163, 184, 0.14) !important;
+            border-radius: 16px !important;
+            padding: 1.2rem 1rem !important;
+            text-align: center !important;
+            transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease !important;
+        }
+        
+        .feature-box:hover {
+            transform: translateY(-3px) !important;
+            border-color: rgba(56, 189, 248, 0.35) !important;
+            background: rgba(30, 41, 59, 0.6) !important;
+        }
+        
+        .feature-box .icon {
+            font-size: 1.6rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        .feature-box .label {
+            color: #cbd5e1 !important;
+            font-size: 0.85rem !important;
+            font-weight: 600 !important;
+        }
+        
+        .footnote {
+            text-align: center !important;
+            color: #475569 !important;
+            margin-top: 2.8rem !important;
+            font-size: 0.8rem !important;
+        }
+        
+        .result-card {
+            background: rgba(15, 23, 42, 0.55) !important;
+            border: 1px solid rgba(148, 163, 184, 0.16) !important;
+            border-radius: 18px !important;
+            padding: 1.9rem 2rem !important;
+            margin-top: 1.8rem !important;
+        }
+        
+        .result-title {
+            font-size: 1.35rem !important;
+            font-weight: 700 !important;
+            color: #f8fafc !important;
+            margin-bottom: 1.1rem !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+        
+        .full-address-box {
+            background: rgba(56, 189, 248, 0.08) !important;
+            border: 1px solid rgba(56, 189, 248, 0.28) !important;
+            border-radius: 12px !important;
+            padding: 0.9rem 1.1rem !important;
+            color: #e0f2fe !important;
+            font-size: 1rem !important;
+            font-weight: 500 !important;
+            line-height: 1.5 !important;
+            margin-bottom: 1.3rem !important;
+        }
+        
+        .info-row {
+            display: flex !important;
+            justify-content: space-between !important;
+            padding: 0.6rem 0 !important;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none !important;
+        }
+        
+        .info-label {
+            color: #94a3b8 !important;
+            font-size: 0.9rem !important;
+        }
+        
+        .info-value {
+            color: #f1f5f9 !important;
+            font-weight: 600 !important;
+            font-size: 0.94rem !important;
+            text-align: right !important;
+            font-variant-numeric: tabular-nums !important;
+        }
+        
+        @media (max-width: 640px) {
+            .hero-title { font-size: 2.2rem !important; }
+            .hero-subtitle { font-size: 1rem !important; }
+            div[data-testid="stTabs"] { padding: 1.4rem 1.2rem 1.1rem !important; border-radius: 18px !important; }
+            .features-row { flex-direction: column !important; }
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    return False
+
+# Carrega o CSS
+carregar_css()
+
+# ============================================================================
+# IMPORTAR COMPONENTES
+# ============================================================================
+# Importa depois do CSS para garantir que não há conflitos
+from components import individual_search, batch_search, cep_range
+
+# ============================================================================
+# HERO / LANDING
+# ============================================================================
 st.markdown(
     '<div class="hero-badge">📍 Feito com dados oficiais dos Correios</div>',
     unsafe_allow_html=True,
@@ -233,28 +282,27 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Abas simplificadas
-tab1, tab2, tab3 = st.tabs(["🔍 Busca individual", "📂 Busca em lote", "🏘️ Bairros por faixa"])
+# ============================================================================
+# ABAS
+# ============================================================================
+tab_individual, tab_lote, tab_faixa = st.tabs([
+    "🔍 Busca individual",
+    "📂 Busca em lote (planilha)",
+    "🏘️ Bairros por faixa de CEP",
+])
 
-with tab1:
-    st.info("🔍 Busca individual de CEP")
-    cep = st.text_input("Digite o CEP:", placeholder="Ex: 01310100")
-    if st.button("Buscar"):
-        st.success(f"Buscando CEP: {cep}")
+with tab_individual:
+    individual_search.render()
 
-with tab2:
-    st.info("📂 Busca em lote via planilha")
-    st.file_uploader("Upload da planilha", type=["csv", "xlsx"])
+with tab_lote:
+    batch_search.render()
 
-with tab3:
-    st.info("🏘️ Bairros por faixa de CEP")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.text_input("CEP inicial:", value="01000")
-    with col2:
-        st.text_input("CEP final:", value="01999")
+with tab_faixa:
+    cep_range.render()
 
-# Rodapé
+# ============================================================================
+# RODAPÉ
+# ============================================================================
 st.markdown(
     """
     <div class="features-row">
@@ -272,7 +320,7 @@ st.markdown(
         </div>
     </div>
     <div class="footnote">
-        BuscaCEP — Dados fornecidos pela API pública ViaCEP
+        BuscaCEP — Dados fornecidos pela API pública ViaCEP e geocodificação pelo OpenStreetMap
     </div>
     """,
     unsafe_allow_html=True,
