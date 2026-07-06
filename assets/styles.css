@@ -63,7 +63,7 @@ header { visibility: hidden; }
     to   { opacity: 1; transform: translateY(0); }
 }
 
-.hero-badge, .hero-title, .hero-subtitle, .trust-row, .st-key-tool_card, .features-row {
+.hero-badge, .hero-title, .hero-subtitle, .trust-row, div[data-testid="stTabs"], .features-row {
     animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .hero-title   { animation-delay: 0.05s; }
@@ -138,7 +138,7 @@ header { visibility: hidden; }
 /* ----------------------------------------------------------------------
    Superfície da ferramenta ("tool card") — eleva o produto do resto da página
    ---------------------------------------------------------------------- */
-.st-key-tool_card {
+div[data-testid="stTabs"] {
     background: linear-gradient(180deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.45));
     border: 1px solid rgba(148, 163, 184, 0.14);
     border-radius: 24px;
@@ -339,6 +339,6 @@ div[data-testid="stTextInput"] input:focus {
 @media (max-width: 640px) {
     .hero-title { font-size: 2.2rem; }
     .hero-subtitle { font-size: 1rem; }
-    .st-key-tool_card { padding: 1.4rem 1.2rem 1.1rem; border-radius: 18px; }
+    div[data-testid="stTabs"] { padding: 1.4rem 1.2rem 1.1rem; border-radius: 18px; }
     .features-row { flex-direction: column; }
 }
