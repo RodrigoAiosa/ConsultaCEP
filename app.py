@@ -82,8 +82,3 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown(
-    '<p class="footnote">Dados via ViaCEP e OpenStreetMap Nominatim · '
-    'Sem necessidade de chave de API</p>',
-    unsafe_allow_html=True,
-)
