@@ -119,6 +119,18 @@ st.markdown("""
         gap: 8px;
     }
 
+    .full-address-box {
+        background: rgba(56, 189, 248, 0.08);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        border-radius: 12px;
+        padding: 0.9rem 1.1rem;
+        color: #e0f2fe;
+        font-size: 1rem;
+        font-weight: 500;
+        line-height: 1.5;
+        margin-bottom: 1.3rem;
+    }
+
     .info-row {
         display: flex;
         justify-content: space-between;
@@ -276,10 +288,26 @@ def _busca_individual():
         st.warning("🔍 CEP não encontrado. Verifique o número digitado.")
         return
 
+    partes_endereco = [
+        dados.get("logradouro"),
+        dados.get("complemento"),
+        dados.get("bairro"),
+    ]
+    linha1 = ", ".join([p for p in partes_endereco if p])
+
+    partes_local = [dados.get("localidade"), dados.get("uf")]
+    linha2 = " - ".join([p for p in partes_local if p])
+
+    endereco_completo = " - ".join([p for p in [linha1, linha2] if p])
+    if dados.get("cep"):
+        endereco_completo = f"{endereco_completo}, CEP {dados.get('cep')}" if endereco_completo else dados.get("cep")
+
     st.markdown(f"""
     <div class="result-card">
         <div class="result-title">📍 {dados.get('logradouro') or 'Endereço encontrado'}</div>
+        <div class="full-address-box">{endereco_completo}</div>
         <div class="info-row"><span class="info-label">CEP</span><span class="info-value">{dados.get('cep', '-')}</span></div>
+        <div class="info-row"><span class="info-label">Logradouro</span><span class="info-value">{dados.get('logradouro') or '-'}</span></div>
         <div class="info-row"><span class="info-label">Bairro</span><span class="info-value">{dados.get('bairro') or '-'}</span></div>
         <div class="info-row"><span class="info-label">Cidade</span><span class="info-value">{dados.get('localidade', '-')}</span></div>
         <div class="info-row"><span class="info-label">Estado</span><span class="info-value">{dados.get('uf', '-')}</span></div>
@@ -376,7 +404,15 @@ def _ler_planilha_de_ceps(arquivo) -> list:
             arquivo.seek(0)
             df = pd.read_csv(arquivo, dtype=str)
     else:
-        df = pd.read_excel(arquivo, dtype=str)
+        try:
+            df = pd.read_excel(arquivo, dtype=str)
+        except ImportError:
+            raise RuntimeError(
+                "Para ler arquivos .xlsx é necessário instalar a biblioteca "
+                "'openpyxl'. Rode: pip install openpyxl (ou pip install -r "
+                "requirements.txt) e reinicie o app. Como alternativa, você "
+                "pode salvar a planilha como .csv."
+            )
 
     coluna_cep = None
     for col in df.columns:
