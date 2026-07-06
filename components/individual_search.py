@@ -1,13 +1,10 @@
 """
-Componente: Busca individual de CEP, com cartão de endereço e mapa interativo.
+Componente: Busca individual de CEP, com cartão de endereço completo.
 """
 import requests
 import streamlit as st
-import pydeck as pdk
 
-from config import ZOOM_POR_NIVEL_PRECISAO, AVISOS_PRECISAO
 from services.viacep import limpar_cep, buscar_cep
-from services.geocoding import geocodificar_com_fallback
 from utils.address import montar_endereco_completo
 
 
@@ -27,40 +24,6 @@ def _renderizar_cartao_endereco(dados: dict) -> None:
         <div class="info-row"><span class="info-label">IBGE</span><span class="info-value">{dados.get('ibge') or '-'}</span></div>
     </div>
     """, unsafe_allow_html=True)
-
-
-def _renderizar_mapa(dados: dict) -> None:
-    with st.spinner("Localizando no mapa..."):
-        resultado_geo = geocodificar_com_fallback(dados)
-
-    if not resultado_geo:
-        st.warning("⚠️ Não foi possível localizar este endereço no mapa no momento.")
-        return
-
-    lat, lon, nivel = resultado_geo
-    zoom = ZOOM_POR_NIVEL_PRECISAO.get(nivel, 14)
-    ponto = [{"lat": lat, "lon": lon}]
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.pydeck_chart(pdk.Deck(
-        map_style="mapbox://styles/mapbox/dark-v10",
-        initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=zoom, pitch=40),
-        layers=[
-            pdk.Layer(
-                "ScatterplotLayer",
-                data=ponto,
-                get_position="[lon, lat]",
-                get_color="[56, 189, 248, 220]",
-                get_radius=60,
-                radius_min_pixels=8,
-                radius_max_pixels=20,
-                pickable=False,
-            ),
-        ],
-    ))
-
-    if nivel != "rua":
-        st.caption(f"ℹ️ {AVISOS_PRECISAO.get(nivel, 'Localização aproximada.')}")
 
 
 def render() -> None:
@@ -98,4 +61,3 @@ def render() -> None:
         return
 
     _renderizar_cartao_endereco(dados)
-    _renderizar_mapa(dados)
