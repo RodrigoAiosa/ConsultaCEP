@@ -946,7 +946,7 @@ with tab_faixa:
                 st.info(f"🔍 Buscando bairros na faixa {cep_ini:05d}-000 a {cep_fim:05d}-999 com passo {passo}...")
                 
                 # Busca os bairros
-                with st.spinner(f"Realizando {total_consultas} consultas à API ViaCEP..."):
+                with st.spinner(f"Realizando {total_consultas} consultas..."):
                     df_bairros = buscar_bairros_por_faixa(cep_ini, cep_fim, passo)
                 
                 if df_bairros.empty:
