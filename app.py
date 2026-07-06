@@ -43,7 +43,6 @@ carregar_css(BASE_DIR / "assets" / "styles.css")
 # ----------------------------------------------------------------------------
 # HERO / LANDING
 # ----------------------------------------------------------------------------
-st.markdown('<div class="hero-badge">🇧🇷 API pública · ViaCEP</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="hero-title">Encontre qualquer<br><span>endereço do Brasil</span></div>',
     unsafe_allow_html=True,
