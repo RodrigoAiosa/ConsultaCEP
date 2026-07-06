@@ -1,32 +1,34 @@
 """
-BuscaCEP — Versão otimizada para deploy
+BuscaCEP — Consulta de Endereços
+Versão com design premium e full-width
 """
 import streamlit as st
 import requests
-import pandas as pd
-import io
-import time
 import re
-from pathlib import Path
 from typing import Optional
 
 # ============================================================================
-# CONFIGURAÇÃO DA PÁGINA - DEVE SER A PRIMEIRA CHAMADA
+# CONFIGURAÇÃO DA PÁGINA
 # ============================================================================
 st.set_page_config(
     page_title="BuscaCEP | Consulta de Endereços",
     page_icon="📍",
-    layout="wide",
+    layout="wide",  # <-- Largura total
     initial_sidebar_state="collapsed",
 )
 
 # ============================================================================
-# CSS COMPLETO - INLINE (evita problemas de path)
+# CSS PREMIUM - FULL WIDTH
 # ============================================================================
 st.markdown("""
 <style>
-    /* RESET E BASE */
-    * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    /* ===== RESET E BASE ===== */
+    * { 
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
     
     html, body, .stApp, .main, .block-container,
     [data-testid="stAppViewContainer"],
@@ -36,10 +38,13 @@ st.markdown("""
         background-color: #0a0e1a !important;
     }
     
+    /* ===== FULL WIDTH ===== */
     .block-container {
-        padding-top: 4.5rem !important;
-        padding-bottom: 4rem !important;
-        max-width: 860px !important;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 3rem !important;
+        padding-right: 3rem !important;
+        max-width: 100% !important;  /* <-- Largura total */
         position: relative !important;
         z-index: 1 !important;
     }
@@ -50,7 +55,7 @@ st.markdown("""
     header { visibility: hidden !important; }
     .stDeployButton { display: none !important; }
     
-    /* Fundo com blobs */
+    /* ===== FUNDO COM BLOBS ===== */
     .stApp::before {
         content: "" !important;
         position: fixed !important;
@@ -58,79 +63,85 @@ st.markdown("""
         z-index: 0 !important;
         pointer-events: none !important;
         background:
-            radial-gradient(680px circle at 12% 8%, rgba(56, 189, 248, 0.16), transparent 60%),
-            radial-gradient(620px circle at 88% 18%, rgba(129, 140, 248, 0.14), transparent 60%),
-            radial-gradient(900px circle at 50% 100%, rgba(56, 189, 248, 0.08), transparent 60%),
+            radial-gradient(800px circle at 10% 10%, rgba(56, 189, 248, 0.15), transparent 60%),
+            radial-gradient(700px circle at 90% 15%, rgba(129, 140, 248, 0.12), transparent 60%),
+            radial-gradient(1000px circle at 50% 100%, rgba(56, 189, 248, 0.06), transparent 60%),
             linear-gradient(180deg, #0a0e1a 0%, #0f1524 45%, #0a0e1a 100%) !important;
     }
     
-    /* Grid sutil */
+    /* ===== GRID SUTIL ===== */
     .stApp::after {
         content: "" !important;
         position: fixed !important;
         inset: 0 !important;
         z-index: 0 !important;
         pointer-events: none !important;
-        opacity: 0.35 !important;
+        opacity: 0.3 !important;
         background-image:
-            linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px) !important;
-        background-size: 44px 44px !important;
-        mask-image: radial-gradient(ellipse 900px 500px at 50% 0%, black 40%, transparent 100%) !important;
-        -webkit-mask-image: radial-gradient(ellipse 900px 500px at 50% 0%, black 40%, transparent 100%) !important;
+            linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px) !important;
+        background-size: 50px 50px !important;
+        mask-image: radial-gradient(ellipse 1000px 600px at 50% 0%, black 40%, transparent 100%) !important;
+        -webkit-mask-image: radial-gradient(ellipse 1000px 600px at 50% 0%, black 40%, transparent 100%) !important;
     }
     
-    /* Hero */
+    /* ===== HERO ===== */
+    .hero-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        margin-bottom: 3rem;
+        position: relative;
+        z-index: 2;
+    }
+    
     .hero-badge {
         display: inline-flex !important;
         align-items: center !important;
-        gap: 6px !important;
+        gap: 8px !important;
         background: rgba(56, 189, 248, 0.10) !important;
         color: #7dd3fc !important;
-        border: 1px solid rgba(56, 189, 248, 0.30) !important;
-        padding: 6px 16px !important;
+        border: 1px solid rgba(56, 189, 248, 0.25) !important;
+        padding: 8px 20px !important;
         border-radius: 999px !important;
-        font-size: 0.76rem !important;
+        font-size: 0.8rem !important;
         font-weight: 600 !important;
-        letter-spacing: 0.03em !important;
-        margin-bottom: 1.4rem !important;
-        position: relative !important;
-        z-index: 2 !important;
+        letter-spacing: 0.04em !important;
+        margin-bottom: 1.5rem !important;
     }
     
     .hero-title {
-        font-size: 3.1rem !important;
+        font-size: 3.8rem !important;
         font-weight: 900 !important;
         color: #f8fafc !important;
         line-height: 1.1 !important;
-        margin-bottom: 0.85rem !important;
-        letter-spacing: -0.035em !important;
-        position: relative !important;
-        z-index: 2 !important;
+        margin-bottom: 1rem !important;
+        letter-spacing: -0.04em !important;
     }
     
     .hero-title span {
-        background: linear-gradient(90deg, #38bdf8, #818cf8 60%, #a78bfa) !important;
+        background: linear-gradient(135deg, #38bdf8, #818cf8 50%, #a78bfa) !important;
         -webkit-background-clip: text !important;
         -webkit-text-fill-color: transparent !important;
         background-clip: text !important;
     }
     
     .hero-subtitle {
-        font-size: 1.12rem !important;
+        font-size: 1.2rem !important;
         color: #94a3b8 !important;
-        margin-bottom: 1.8rem !important;
-        max-width: 560px !important;
-        line-height: 1.65 !important;
-        position: relative !important;
-        z-index: 2 !important;
+        margin-bottom: 2rem !important;
+        max-width: 640px !important;
+        line-height: 1.7 !important;
     }
     
+    /* ===== TRUST ROW - CARDS MELHORADOS ===== */
     .trust-row {
         display: flex !important;
         flex-wrap: wrap !important;
-        gap: 0.55rem !important;
-        margin-bottom: 2.6rem !important;
+        justify-content: center !important;
+        gap: 0.8rem !important;
+        margin-bottom: 3rem !important;
         position: relative !important;
         z-index: 2 !important;
     }
@@ -138,70 +149,91 @@ st.markdown("""
     .trust-chip {
         display: inline-flex !important;
         align-items: center !important;
-        gap: 6px !important;
-        background: rgba(148, 163, 184, 0.06) !important;
-        border: 1px solid rgba(148, 163, 184, 0.16) !important;
-        color: #cbd5e1 !important;
-        padding: 6px 13px !important;
-        border-radius: 999px !important;
-        font-size: 0.82rem !important;
+        gap: 8px !important;
+        background: rgba(30, 41, 59, 0.6) !important;
+        border: 1px solid rgba(148, 163, 184, 0.12) !important;
+        color: #e2e8f0 !important;
+        padding: 10px 20px !important;
+        border-radius: 12px !important;
+        font-size: 0.9rem !important;
         font-weight: 500 !important;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
     }
     
-    /* Tabs - Tool Card */
+    .trust-chip:hover {
+        transform: translateY(-3px) !important;
+        border-color: rgba(56, 189, 248, 0.4) !important;
+        box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15) !important;
+        background: rgba(30, 41, 59, 0.8) !important;
+    }
+    
+    .trust-chip .icon {
+        font-size: 1.1rem !important;
+    }
+    
+    /* ===== TOOL CARD - PRINCIPAL ===== */
     div[data-testid="stTabs"] {
-        background: linear-gradient(180deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.45)) !important;
-        border: 1px solid rgba(148, 163, 184, 0.14) !important;
-        border-radius: 24px !important;
-        padding: 2.1rem 2.2rem 1.6rem !important;
+        background: linear-gradient(160deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.5)) !important;
+        border: 1px solid rgba(148, 163, 184, 0.12) !important;
+        border-radius: 28px !important;
+        padding: 2.5rem 2.8rem 2rem !important;
         box-shadow:
-            0 0 0 1px rgba(56, 189, 248, 0.04),
-            0 20px 60px -20px rgba(0, 0, 0, 0.55),
-            0 8px 24px -8px rgba(56, 189, 248, 0.08) !important;
-        backdrop-filter: blur(14px) !important;
-        -webkit-backdrop-filter: blur(14px) !important;
-        margin-bottom: 2.6rem !important;
+            0 0 0 1px rgba(56, 189, 248, 0.03),
+            0 25px 80px -20px rgba(0, 0, 0, 0.6),
+            0 10px 30px -10px rgba(56, 189, 248, 0.06) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        margin-bottom: 3rem !important;
         position: relative !important;
         z-index: 2 !important;
+        max-width: 100% !important;
     }
     
+    /* ===== TABS ===== */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 4px !important;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
+        gap: 6px !important;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.10) !important;
+        margin-bottom: 1.5rem !important;
     }
     
     .stTabs [data-baseweb="tab"] {
         color: #64748b !important;
         font-weight: 600 !important;
-        font-size: 0.92rem !important;
-        padding: 10px 16px !important;
+        font-size: 0.95rem !important;
+        padding: 12px 20px !important;
         background: transparent !important;
-        border-radius: 10px 10px 0 0 !important;
+        border-radius: 12px 12px 0 0 !important;
+        transition: all 0.2s ease !important;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
         color: #cbd5e1 !important;
-        background: rgba(148, 163, 184, 0.06) !important;
+        background: rgba(148, 163, 184, 0.05) !important;
     }
     
     .stTabs [aria-selected="true"] {
         color: #38bdf8 !important;
-        background: rgba(56, 189, 248, 0.07) !important;
+        background: rgba(56, 189, 248, 0.06) !important;
     }
     
     .stTabs [data-baseweb="tab-highlight"] {
         background: linear-gradient(90deg, #38bdf8, #818cf8) !important;
-        height: 2.5px !important;
+        height: 3px !important;
+        border-radius: 2px !important;
     }
     
-    /* Inputs */
+    /* ===== INPUTS ===== */
     div[data-testid="stTextInput"] input {
-        background-color: rgba(15, 23, 42, 0.6) !important;
+        background-color: rgba(15, 23, 42, 0.7) !important;
         color: #f8fafc !important;
         border: 1px solid #334155 !important;
-        border-radius: 12px !important;
-        padding: 0.9rem 1.05rem !important;
+        border-radius: 14px !important;
+        padding: 1rem 1.2rem !important;
         font-size: 1.05rem !important;
+        transition: all 0.2s ease !important;
     }
     
     div[data-testid="stTextInput"] input::placeholder {
@@ -210,117 +242,108 @@ st.markdown("""
     
     div[data-testid="stTextInput"] input:focus {
         border: 1px solid #38bdf8 !important;
-        box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14) !important;
+        box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12) !important;
     }
     
-    /* Botões */
+    /* ===== BOTÕES ===== */
     .stButton > button {
-        background: linear-gradient(90deg, #38bdf8, #6366f1) !important;
+        background: linear-gradient(135deg, #38bdf8, #6366f1) !important;
         color: white !important;
         border: none !important;
-        border-radius: 12px !important;
-        padding: 0.85rem 1.6rem !important;
+        border-radius: 14px !important;
+        padding: 0.9rem 2rem !important;
         font-weight: 700 !important;
         font-size: 1rem !important;
         width: 100% !important;
         letter-spacing: -0.01em !important;
-        box-shadow: 0 4px 14px -4px rgba(99, 102, 241, 0.4) !important;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease !important;
+        box-shadow: 0 4px 16px -4px rgba(99, 102, 241, 0.35) !important;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 12px 28px -6px rgba(99, 102, 241, 0.5) !important;
-        filter: brightness(1.06) !important;
-    }
-    
-    /* Features */
-    .features-row {
-        display: flex !important;
-        gap: 1rem !important;
-        margin-top: 0.4rem !important;
-        position: relative !important;
-        z-index: 2 !important;
-    }
-    
-    .feature-box {
-        flex: 1 !important;
-        background: rgba(30, 41, 59, 0.4) !important;
-        border: 1px solid rgba(148, 163, 184, 0.14) !important;
-        border-radius: 16px !important;
-        padding: 1.2rem 1rem !important;
-        text-align: center !important;
-        transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease !important;
-    }
-    
-    .feature-box:hover {
         transform: translateY(-3px) !important;
-        border-color: rgba(56, 189, 248, 0.35) !important;
-        background: rgba(30, 41, 59, 0.6) !important;
+        box-shadow: 0 12px 32px -6px rgba(99, 102, 241, 0.5) !important;
+        filter: brightness(1.08) !important;
     }
     
-    .feature-box .icon {
-        font-size: 1.6rem !important;
-        margin-bottom: 0.5rem !important;
+    .stButton > button:active {
+        transform: translateY(0) !important;
     }
     
-    .feature-box .label {
-        color: #cbd5e1 !important;
-        font-size: 0.85rem !important;
-        font-weight: 600 !important;
-    }
-    
-    .footnote {
-        text-align: center !important;
-        color: #475569 !important;
-        margin-top: 2.8rem !important;
-        font-size: 0.8rem !important;
-        position: relative !important;
-        z-index: 2 !important;
-    }
-    
-    /* Result Card */
+    /* ===== RESULT CARD - DESTAQUE ===== */
     .result-card {
-        background: rgba(15, 23, 42, 0.55) !important;
-        border: 1px solid rgba(148, 163, 184, 0.16) !important;
-        border-radius: 18px !important;
-        padding: 1.9rem 2rem !important;
-        margin-top: 1.8rem !important;
-        animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.6)) !important;
+        border: 1px solid rgba(56, 189, 248, 0.15) !important;
+        border-radius: 20px !important;
+        padding: 2.2rem 2.5rem !important;
+        margin-top: 2rem !important;
+        animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+        box-shadow: 
+            0 0 0 1px rgba(56, 189, 248, 0.05),
+            0 20px 60px -20px rgba(0, 0, 0, 0.5),
+            0 8px 24px -8px rgba(56, 189, 248, 0.08) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+    
+    /* Brilho sutil no card de resultado */
+    .result-card::before {
+        content: "" !important;
+        position: absolute !important;
+        top: -50% !important;
+        right: -50% !important;
+        width: 200% !important;
+        height: 200% !important;
+        background: radial-gradient(circle at 70% 20%, rgba(56, 189, 248, 0.03), transparent 60%) !important;
+        pointer-events: none !important;
     }
     
     @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(14px); }
+        from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
     
     .result-title {
-        font-size: 1.35rem !important;
+        font-size: 1.5rem !important;
         font-weight: 700 !important;
         color: #f8fafc !important;
-        margin-bottom: 1.1rem !important;
+        margin-bottom: 1.2rem !important;
         display: flex !important;
         align-items: center !important;
-        gap: 8px !important;
+        gap: 10px !important;
+        position: relative !important;
+        z-index: 1 !important;
     }
     
     .full-address-box {
-        background: rgba(56, 189, 248, 0.08) !important;
-        border: 1px solid rgba(56, 189, 248, 0.28) !important;
-        border-radius: 12px !important;
-        padding: 0.9rem 1.1rem !important;
+        background: rgba(56, 189, 248, 0.06) !important;
+        border: 1px solid rgba(56, 189, 248, 0.2) !important;
+        border-radius: 14px !important;
+        padding: 1rem 1.3rem !important;
         color: #e0f2fe !important;
-        font-size: 1rem !important;
+        font-size: 1.05rem !important;
         font-weight: 500 !important;
-        line-height: 1.5 !important;
-        margin-bottom: 1.3rem !important;
+        line-height: 1.6 !important;
+        margin-bottom: 1.5rem !important;
+        position: relative !important;
+        z-index: 1 !important;
+    }
+    
+    .info-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.5rem 2rem !important;
+        position: relative !important;
+        z-index: 1 !important;
     }
     
     .info-row {
         display: flex !important;
         justify-content: space-between !important;
         padding: 0.6rem 0 !important;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.06) !important;
     }
     
     .info-row:last-child {
@@ -329,28 +352,127 @@ st.markdown("""
     
     .info-label {
         color: #94a3b8 !important;
-        font-size: 0.9rem !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.02em !important;
+        text-transform: uppercase !important;
     }
     
     .info-value {
         color: #f1f5f9 !important;
         font-weight: 600 !important;
-        font-size: 0.94rem !important;
+        font-size: 0.95rem !important;
         text-align: right !important;
         font-variant-numeric: tabular-nums !important;
     }
     
-    @media (max-width: 640px) {
-        .hero-title { font-size: 2.2rem !important; }
-        .hero-subtitle { font-size: 1rem !important; }
-        div[data-testid="stTabs"] { padding: 1.4rem 1.2rem 1.1rem !important; border-radius: 18px !important; }
-        .features-row { flex-direction: column !important; }
+    /* ===== FEATURES ROW - CARDS EM DESTAQUE ===== */
+    .features-row {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 1.2rem !important;
+        margin-top: 1.5rem !important;
+        position: relative !important;
+        z-index: 2 !important;
+    }
+    
+    .feature-box {
+        background: linear-gradient(160deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.4)) !important;
+        border: 1px solid rgba(148, 163, 184, 0.08) !important;
+        border-radius: 18px !important;
+        padding: 1.8rem 1.5rem !important;
+        text-align: center !important;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+    }
+    
+    .feature-box:hover {
+        transform: translateY(-6px) !important;
+        border-color: rgba(56, 189, 248, 0.3) !important;
+        background: linear-gradient(160deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.6)) !important;
+        box-shadow: 0 12px 40px -8px rgba(56, 189, 248, 0.15) !important;
+    }
+    
+    .feature-box .icon {
+        font-size: 2.2rem !important;
+        margin-bottom: 0.7rem !important;
+        display: block !important;
+    }
+    
+    .feature-box .label {
+        color: #e2e8f0 !important;
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+    }
+    
+    .feature-box .description {
+        color: #94a3b8 !important;
+        font-size: 0.8rem !important;
+        margin-top: 0.3rem !important;
+    }
+    
+    /* ===== FOOTNOTE ===== */
+    .footnote {
+        text-align: center !important;
+        color: #475569 !important;
+        margin-top: 3rem !important;
+        font-size: 0.8rem !important;
+        position: relative !important;
+        z-index: 2 !important;
+        letter-spacing: 0.02em !important;
+    }
+    
+    /* ===== RESPONSIVO ===== */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-left: 1.2rem !important;
+            padding-right: 1.2rem !important;
+        }
+        
+        .hero-title {
+            font-size: 2.5rem !important;
+        }
+        
+        .hero-subtitle {
+            font-size: 1rem !important;
+        }
+        
+        div[data-testid="stTabs"] {
+            padding: 1.5rem 1.2rem 1.2rem !important;
+            border-radius: 20px !important;
+        }
+        
+        .info-grid {
+            grid-template-columns: 1fr !important;
+        }
+        
+        .features-row {
+            grid-template-columns: 1fr !important;
+            gap: 0.8rem !important;
+        }
+        
+        .trust-chip {
+            font-size: 0.8rem !important;
+            padding: 8px 14px !important;
+        }
+        
+        .result-card {
+            padding: 1.5rem !important;
+        }
+    }
+    
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .features-row {
+            grid-template-columns: repeat(3, 1fr) !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# FUNÇÕES DE SERVIÇO (cópias locais para evitar imports)
+# FUNÇÕES DE SERVIÇO
 # ============================================================================
 
 def limpar_cep(cep: str) -> str:
@@ -400,20 +522,22 @@ def montar_endereco(dados: dict) -> str:
 # ============================================================================
 
 def renderizar_resultado(dados: dict):
-    """Renderiza o cartão de resultado"""
+    """Renderiza o cartão de resultado com design melhorado"""
     endereco = montar_endereco(dados)
     
     st.markdown(f"""
     <div class="result-card">
         <div class="result-title">📍 {dados.get('logradouro') or 'Endereço encontrado'}</div>
         <div class="full-address-box">{endereco}</div>
-        <div class="info-row"><span class="info-label">CEP</span><span class="info-value">{dados.get('cep', '-')}</span></div>
-        <div class="info-row"><span class="info-label">Logradouro</span><span class="info-value">{dados.get('logradouro') or '-'}</span></div>
-        <div class="info-row"><span class="info-label">Bairro</span><span class="info-value">{dados.get('bairro') or '-'}</span></div>
-        <div class="info-row"><span class="info-label">Cidade</span><span class="info-value">{dados.get('localidade', '-')}</span></div>
-        <div class="info-row"><span class="info-label">Estado</span><span class="info-value">{dados.get('uf', '-')}</span></div>
-        <div class="info-row"><span class="info-label">DDD</span><span class="info-value">{dados.get('ddd') or '-'}</span></div>
-        <div class="info-row"><span class="info-label">IBGE</span><span class="info-value">{dados.get('ibge') or '-'}</span></div>
+        <div class="info-grid">
+            <div class="info-row"><span class="info-label">CEP</span><span class="info-value">{dados.get('cep', '-')}</span></div>
+            <div class="info-row"><span class="info-label">Logradouro</span><span class="info-value">{dados.get('logradouro') or '-'}</span></div>
+            <div class="info-row"><span class="info-label">Bairro</span><span class="info-value">{dados.get('bairro') or '-'}</span></div>
+            <div class="info-row"><span class="info-label">Cidade</span><span class="info-value">{dados.get('localidade', '-')}</span></div>
+            <div class="info-row"><span class="info-label">Estado</span><span class="info-value">{dados.get('uf', '-')}</span></div>
+            <div class="info-row"><span class="info-label">DDD</span><span class="info-value">{dados.get('ddd') or '-'}</span></div>
+            <div class="info-row"><span class="info-label">IBGE</span><span class="info-value">{dados.get('ibge') or '-'}</span></div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -421,31 +545,24 @@ def renderizar_resultado(dados: dict):
 # HERO / LANDING
 # ============================================================================
 
-st.markdown(
-    '<div class="hero-badge">📍 Feito com dados oficiais dos Correios</div>',
-    unsafe_allow_html=True,
-)
-st.markdown(
-    '<div class="hero-title">Encontre qualquer<br><span>endereço do Brasil</span></div>',
-    unsafe_allow_html=True,
-)
-st.markdown(
-    '<div class="hero-subtitle">Digite um CEP e descubra rua, bairro, cidade, estado — '
-    'ou envie uma planilha inteira e baixe tudo processado em .csv.</div>',
-    unsafe_allow_html=True,
-)
-st.markdown(
-    """
-    <div class="trust-row">
-        <span class="trust-chip">⚡ Resultado em segundos</span>
-        <span class="trust-chip">🔓 Sem cadastro</span>
-        <span class="trust-chip">💸 100% gratuito</span>
-        <span class="trust-chip">📊 Exporta em .csv</span>
-        <span class="trust-chip">🗺️ Mapa incluso</span>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<div class="hero-wrapper">
+    <div class="hero-badge">📍 Feito com dados oficiais dos Correios</div>
+    <div class="hero-title">Encontre qualquer<br><span>endereço do Brasil</span></div>
+    <div class="hero-subtitle">Digite um CEP e descubra rua, bairro, cidade, estado —<br>
+    ou envie uma planilha inteira e baixe tudo processado em .csv.</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Trust Row SEM o "🗺️ Mapa incluso"
+st.markdown("""
+<div class="trust-row">
+    <span class="trust-chip"><span class="icon">⚡</span> Resultado em segundos</span>
+    <span class="trust-chip"><span class="icon">🔓</span> Sem cadastro</span>
+    <span class="trust-chip"><span class="icon">💸</span> 100% gratuito</span>
+    <span class="trust-chip"><span class="icon">📊</span> Exporta em .csv</span>
+</div>
+""", unsafe_allow_html=True)
 
 # ============================================================================
 # ABAS
@@ -460,8 +577,7 @@ tab_individual, tab_lote, tab_faixa = st.tabs([
 # --- Aba 1: Busca Individual ---
 with tab_individual:
     st.markdown(
-        "<p style='color:#94a3b8; margin-bottom:1rem;'>Digite um CEP para consultar "
-        "o endereço completo.</p>",
+        "<p style='color:#94a3b8; margin-bottom:1rem; font-size:0.95rem;'>Digite um CEP para consultar o endereço completo.</p>",
         unsafe_allow_html=True,
     )
     
@@ -491,9 +607,7 @@ with tab_individual:
 # --- Aba 2: Busca em Lote ---
 with tab_lote:
     st.markdown(
-        "<p style='color:#94a3b8; margin-bottom:1rem;'>Envie uma planilha "
-        "(.csv ou .xlsx) com uma coluna de CEPs. O app consulta cada um na "
-        "ViaCEP e gera um .csv para download.</p>",
+        "<p style='color:#94a3b8; margin-bottom:1rem; font-size:0.95rem;'>Envie uma planilha (.csv ou .xlsx) com uma coluna de CEPs.</p>",
         unsafe_allow_html=True,
     )
     
@@ -508,6 +622,7 @@ with tab_lote:
         
         # Preview do arquivo
         try:
+            import pandas as pd
             if arquivo.name.endswith('.csv'):
                 df_preview = pd.read_csv(arquivo, nrows=5)
             else:
@@ -522,8 +637,7 @@ with tab_lote:
 # --- Aba 3: Bairros por Faixa ---
 with tab_faixa:
     st.markdown(
-        "<p style='color:#94a3b8; margin-bottom:1rem;'>Escolha uma faixa de CEP "
-        "(os 5 primeiros dígitos, ex: 01000 a 01999).</p>",
+        "<p style='color:#94a3b8; margin-bottom:1rem; font-size:0.95rem;'>Escolha uma faixa de CEP (os 5 primeiros dígitos, ex: 01000 a 01999).</p>",
         unsafe_allow_html=True,
     )
     
@@ -552,36 +666,34 @@ with tab_faixa:
             key="faixa_passo"
         )
     
-    st.caption(
-        "ℹ️ Passo menor = mais preciso, porém mais lento (mais chamadas à API)."
-    )
+    st.caption("ℹ️ Passo menor = mais preciso, porém mais lento (mais chamadas à API).")
     
     if st.button("Gerar tabela de bairros", key="btn_faixa"):
         st.info("🔍 Buscando bairros...")
 
 # ============================================================================
-# RODAPÉ
+# FEATURES ROW - CARDS EM DESTAQUE
 # ============================================================================
 
-st.markdown(
-    """
-    <div class="features-row">
-        <div class="feature-box">
-            <div class="icon">⚡</div>
-            <div class="label">Rápido e direto</div>
-        </div>
-        <div class="feature-box">
-            <div class="icon">🔒</div>
-            <div class="label">Privacidade total</div>
-        </div>
-        <div class="feature-box">
-            <div class="icon">📦</div>
-            <div class="label">Dados oficiais</div>
-        </div>
+st.markdown("""
+<div class="features-row">
+    <div class="feature-box">
+        <span class="icon">⚡</span>
+        <div class="label">Rápido e direto</div>
+        <div class="description">Resultados em segundos</div>
     </div>
-    <div class="footnote">
-        BuscaCEP — Dados fornecidos pela API pública ViaCEP
+    <div class="feature-box">
+        <span class="icon">🔒</span>
+        <div class="label">Privacidade total</div>
+        <div class="description">Sem cadastro ou dados salvos</div>
     </div>
-    """,
-    unsafe_allow_html=True,
-)
+    <div class="feature-box">
+        <span class="icon">📦</span>
+        <div class="label">Dados oficiais</div>
+        <div class="description">Direto da API dos Correios</div>
+    </div>
+</div>
+<div class="footnote">
+    BuscaCEP — Dados fornecidos pela API pública ViaCEP
+</div>
+""", unsafe_allow_html=True)
