@@ -687,11 +687,6 @@ st.markdown("""
         <div class="label">Privacidade total</div>
         <div class="description">Sem cadastro ou dados salvos</div>
     </div>
-    <div class="feature-box">
-        <span class="icon">📦</span>
-        <div class="label">Dados oficiais</div>
-        <div class="description">Direto da API dos Correios</div>
-    </div>
 </div>
 <div class="footnote">
     BuscaCEP — Dados fornecidos pela API pública ViaCEP
