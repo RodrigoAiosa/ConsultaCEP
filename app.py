@@ -9,6 +9,7 @@ import pandas as pd
 import io
 import time
 from typing import Optional, List, Dict
+from esconder_selo import esconder_selo_streamlit
 
 # ============================================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -19,6 +20,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+esconder_selo_streamlit()  # oculta os controles do Streamlit Cloud
 
 # ============================================================================
 # CSS PREMIUM - FULL WIDTH
