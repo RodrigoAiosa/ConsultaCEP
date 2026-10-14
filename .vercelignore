@@ -1,0 +1,12 @@
+# O app Streamlit (Python) não roda na Vercel; lá publicamos só o index.html
+# e a função de reserva api/viacep.js.
+app.py
+teste_minimo.py
+config.py
+esconder_selo.py
+components/
+services/
+utils/
+assets/
+requirements.txt
+.streamlit/

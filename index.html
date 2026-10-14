@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BuscaCEP | Consulta de Endereços</title>
+<meta name="description" content="Digite um CEP e descubra rua, bairro, cidade, estado, DDD e código IBGE — ou envie uma planilha inteira e baixe tudo em .csv. Grátis e sem cadastro.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* Tema escuro do app original: azul-céu → índigo sobre fundo noturno. */
+:root {
+  --bg: #0a0e1a; --bg-2: #0f1524; --surface: rgba(30, 41, 59, .55); --surface-2: rgba(15, 23, 42, .7);
+  --line: rgba(148, 163, 184, .14); --ink: #f8fafc; --ink-2: #cbd5e1; --muted: #94a3b8;
+  --sky: #38bdf8; --sky-2: #7dd3fc; --indigo: #818cf8; --violet: #a78bfa;
+  --ok: #34d399; --warn: #fbbf24; --bad: #f87171;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.6 "Inter", system-ui, sans-serif; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none;
+  background:
+    radial-gradient(680px circle at 12% 8%, rgba(56,189,248,.16), transparent 60%),
+    radial-gradient(620px circle at 88% 18%, rgba(129,140,248,.14), transparent 60%),
+    radial-gradient(900px circle at 50% 100%, rgba(56,189,248,.07), transparent 60%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 45%, var(--bg) 100%);
+}
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .35;
+  background-image: linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.05) 1px, transparent 1px);
+  background-size: 50px 50px;
+  -webkit-mask-image: radial-gradient(ellipse 1000px 600px at 50% 0%, #000 40%, transparent 100%); mask-image: radial-gradient(ellipse 1000px 600px at 50% 0%, #000 40%, transparent 100%);
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+.hero { text-align: center; padding: 64px 0 28px; }
+.badge { display: inline-flex; gap: 8px; align-items: center; background: rgba(56,189,248,.1); color: var(--sky-2); border: 1px solid rgba(56,189,248,.25); padding: 7px 18px; border-radius: 99px; font-size: 13px; font-weight: 600; letter-spacing: .03em; }
+h1 { font-size: clamp(36px, 7vw, 62px); font-weight: 900; line-height: 1.06; letter-spacing: -.04em; margin: 22px 0 14px; }
+h1 span { background: linear-gradient(135deg, var(--sky), var(--indigo) 50%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { color: var(--muted); font-size: clamp(16px, 2vw, 19px); max-width: 620px; margin: 0 auto; }
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 28px 0 36px; }
+.chip { display: inline-flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); color: var(--ink-2); padding: 9px 16px; border-radius: 12px; font-size: 14px; font-weight: 500; backdrop-filter: blur(8px); }
+
+.tool { background: linear-gradient(160deg, rgba(30,41,59,.6), rgba(15,23,42,.5)); border: 1px solid var(--line); border-radius: 24px; padding: 26px clamp(16px, 3vw, 36px) 30px; box-shadow: 0 25px 80px -20px rgba(0,0,0,.6), 0 10px 30px -10px rgba(56,189,248,.08); backdrop-filter: blur(20px); margin-bottom: 40px; }
+.tabs { display: flex; gap: 6px; background: rgba(15,23,42,.6); border: 1px solid var(--line); border-radius: 14px; padding: 5px; margin-bottom: 22px; overflow-x: auto; }
+.tab { appearance: none; flex: 1; border: 0; background: none; color: var(--muted); font: 600 14px "Inter", sans-serif; padding: 10px 14px; border-radius: 10px; cursor: pointer; white-space: nowrap; }
+.tab[aria-selected="true"] { background: linear-gradient(135deg, rgba(56,189,248,.18), rgba(129,140,248,.18)); color: var(--ink); box-shadow: inset 0 0 0 1px rgba(56,189,248,.3); }
+.tab:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+.panel[hidden] { display: none; }
+.hint { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 140px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+input[type=text], input[type=number] { font: 500 16px "Inter", sans-serif; color: var(--ink); background: rgba(15,23,42,.8); border: 1px solid rgba(148,163,184,.2); border-radius: 12px; padding: 12px 16px; min-height: 50px; width: 100%; }
+input.big { font: 600 20px "JetBrains Mono", monospace; letter-spacing: .04em; }
+input::placeholder { color: #64748b; }
+.btn { appearance: none; border: 0; border-radius: 12px; min-height: 50px; padding: 0 26px; font: 700 15px "Inter", sans-serif; color: #04121f; cursor: pointer; background: linear-gradient(135deg, var(--sky), var(--indigo)); box-shadow: 0 8px 24px -8px rgba(56,189,248,.6); white-space: nowrap; }
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.ghost { background: rgba(30,41,59,.8); color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+.btn.small { min-height: 40px; padding: 0 16px; font-size: 14px; }
+.cap { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+
+.out { margin-top: 22px; }
+.msg { border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.msg.bad { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); color: #fecaca; }
+.msg.warn { background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.3); color: #fde68a; }
+.msg.info { background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.25); color: #bae6fd; }
+.msg.ok { background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.3); color: #a7f3d0; }
+
+.result { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.card { background: var(--surface-2); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+.card h3 { margin: 0 0 12px; font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+.addr { background: rgba(56,189,248,.07); border: 1px solid rgba(56,189,248,.2); border-radius: 12px; padding: 12px 14px; color: var(--ink-2); display: flex; gap: 10px; justify-content: space-between; align-items: start; }
+.copy { appearance: none; background: none; border: 1px solid var(--line); color: var(--sky-2); border-radius: 8px; padding: 4px 10px; font: 600 12px "Inter", sans-serif; cursor: pointer; white-space: nowrap; }
+.kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin-top: 12px; }
+.kv div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.kv span:first-child { color: var(--muted); }
+.kv span:last-child { font-weight: 600; text-align: right; }
+.mono { font-family: "JetBrains Mono", monospace; }
+#mapa { height: 100%; min-height: 340px; border-radius: 14px; border: 1px solid var(--line); z-index: 0; }
+.prec { font-size: 12px; color: var(--warn); margin-top: 8px; }
+.recent { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.recent button { appearance: none; background: rgba(30,41,59,.7); border: 1px solid var(--line); color: var(--ink-2); border-radius: 99px; padding: 4px 12px; font: 500 12px "JetBrains Mono", monospace; cursor: pointer; }
+
+.drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; border: 2px dashed rgba(148,163,184,.25); border-radius: 18px; padding: 34px 16px; background: rgba(15,23,42,.45); cursor: pointer; transition: .2s; }
+.drop.over, .drop:hover { border-color: var(--sky); background: rgba(56,189,248,.06); }
+.drop b { font-size: 16px; }
+.drop small { color: var(--muted); }
+.stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.stat { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; font-size: 14px; color: var(--ink-2); }
+.stat b { color: var(--sky-2); font-size: 18px; margin-left: 6px; font-variant-numeric: tabular-nums; }
+.progress { height: 8px; border-radius: 99px; background: rgba(148,163,184,.15); overflow: hidden; margin-top: 16px; }
+.progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--sky), var(--indigo)); transition: width .2s; }
+.ptxt { color: var(--muted); font-size: 13px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.table-wrap { overflow: auto; max-height: 460px; border: 1px solid var(--line); border-radius: 14px; background: rgba(15,23,42,.55); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: #111a2e; color: var(--muted); font-weight: 600; }
+td.st-ok { color: var(--ok); } td.st-bad { color: var(--bad); } td.st-warn { color: var(--warn); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+.how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 30px; }
+.how div { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.how b { display: block; margin-bottom: 4px; }
+.how p { margin: 0; color: var(--muted); font-size: 14px; }
+footer { color: #64748b; font-size: 12px; text-align: center; padding: 10px 0 48px; }
+footer a { color: var(--muted); }
+.spin { width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--sky); border-radius: 50%; animation: s .8s linear infinite; display: inline-block; vertical-align: -3px; margin-right: 8px; }
+@keyframes s { to { transform: rotate(360deg); } }
+.leaflet-popup-content { font: 13px/1.4 "Inter", sans-serif; }
+
+@media (max-width: 820px) { .result { grid-template-columns: 1fr; } .how { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .kv { grid-template-columns: 1fr; } .hero { padding-top: 40px; } .btn { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="badge">📍 Feito com dados oficiais dos Correios</span>
+    <h1>Encontre qualquer<br><span>endereço do Brasil</span></h1>
+    <p class="lede">Digite um CEP e descubra rua, bairro, cidade e estado — ou envie uma planilha inteira e baixe tudo processado em .csv.</p>
+    <div class="chips"><span class="chip">⚡ Resultado em segundos</span><span class="chip">🔓 Sem cadastro</span><span class="chip">💸 100% gratuito</span><span class="chip">📊 Exporta em .csv</span></div>
+  </header>
+
+  <main class="tool">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-t="individual" aria-selected="true">🔍 Busca individual</button>
+      <button class="tab" role="tab" data-t="lote" aria-selected="false">📂 Busca em lote (planilha)</button>
+      <button class="tab" role="tab" data-t="faixa" aria-selected="false">🏘️ Bairros por faixa de CEP</button>
+    </div>
+
+    <!-- BUSCA INDIVIDUAL -->
+    <section class="panel" id="p-individual" role="tabpanel">
+      <p class="hint">Digite um CEP para consultar o endereço completo.</p>
+      <form class="row" id="f-individual">
+        <div class="field"><label for="cep">CEP</label><input type="text" id="cep" class="big" inputmode="numeric" autocomplete="postal-code" placeholder="01310-100" maxlength="9" autofocus></div>
+        <button class="btn">Buscar</button>
+      </form>
+      <div class="recent" id="recentes"></div>
+      <div class="out" id="o-individual"></div>
+    </section>
+
+    <!-- LOTE -->
+    <section class="panel" id="p-lote" role="tabpanel" hidden>
+      <p class="hint">Envie uma planilha (.csv ou .xlsx) com uma coluna de CEPs. O app consulta cada um e gera um .csv com endereço completo, bairro, cidade, estado, DDD e código IBGE.</p>
+      <label class="drop" id="drop" for="arquivo">
+        <span style="font-size:30px">📄</span>
+        <b>Arraste a planilha aqui ou clique para escolher</b>
+        <small>.csv, .xlsx ou .xls · a coluna com “cep” no nome é usada; se não houver, a primeira coluna</small>
+        <input type="file" id="arquivo" accept=".csv,.xlsx,.xls,.txt" hidden>
+      </label>
+      <p class="cap">Também pode colar CEPs, um por linha: <button class="copy" type="button" id="btnColar">colar lista</button></p>
+      <div id="colarBox" hidden style="margin-top:10px"><textarea id="colarTxt" rows="5" style="width:100%;font:500 14px 'JetBrains Mono',monospace;color:var(--ink);background:rgba(15,23,42,.8);border:1px solid rgba(148,163,184,.2);border-radius:12px;padding:12px" placeholder="01310-100&#10;20040-020&#10;30130-010"></textarea><button class="btn small" type="button" id="btnUsarLista" style="margin-top:8px">Usar esta lista</button></div>
+      <div class="out" id="o-lote"></div>
+    </section>
+
+    <!-- FAIXA -->
+    <section class="panel" id="p-faixa" role="tabpanel" hidden>
+      <p class="hint">Escolha uma faixa de CEP (os 5 primeiros dígitos, ex.: 01000 a 01999) e o app consulta a ViaCEP ao longo da faixa, agrupando os bairros encontrados.</p>
+      <form class="row" id="f-faixa">
+        <div class="field"><label for="fIni">CEP inicial (5 dígitos)</label><input type="text" id="fIni" class="mono" inputmode="numeric" maxlength="5" value="15230"></div>
+        <div class="field"><label for="fFim">CEP final (5 dígitos)</label><input type="text" id="fFim" class="mono" inputmode="numeric" maxlength="5" value="15239"></div>
+        <div class="field" style="max-width:180px"><label for="fPasso">Passo (amostragem)</label><input type="number" id="fPasso" min="1" max="200" value="1"></div>
+        <button class="btn">Gerar tabela de bairros</button>
+      </form>
+      <p class="cap">ℹ️ Passo menor = mais preciso, porém mais lento (mais chamadas à API pública). Cada ponto consulta o CEP <span class="mono">XXXXX-000</span>; o resultado é uma aproximação por amostragem, limitada a 500 consultas.</p>
+      <div class="out" id="o-faixa"></div>
+    </section>
+  </main>
+
+  <section class="how">
+    <div><b>🔍 Um CEP</b><p>Endereço completo, DDD, código IBGE e localização aproximada no mapa.</p></div>
+    <div><b>📂 Uma planilha</b><p>Centenas de CEPs de uma vez, com resumo do que foi encontrado e download em .csv.</p></div>
+    <div><b>🏘️ Uma faixa</b><p>Descubra quais bairros e cidades ficam em uma faixa de CEPs.</p></div>
+  </section>
+
+  <footer>
+    Dados de endereço: <a href="https://viacep.com.br" target="_blank" rel="noopener">ViaCEP</a> · localização: <a href="https://nominatim.org" target="_blank" rel="noopener">Nominatim / OpenStreetMap</a>.
+    As consultas saem do seu navegador; nenhum dado é guardado. · <a href="https://github.com/RodrigoAiosa/ConsultaCEP" target="_blank" rel="noopener">Código no GitHub</a>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => (s == null ? "" : String(s)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const limpar = (c) => String(c ?? "").replace(/\D/g, "");
+  const fmtCep = (c) => (c.length === 8 ? `${c.slice(0, 5)}-${c.slice(5)}` : c);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // ---------------------------------------------------------------- ViaCEP
+  // Chama a ViaCEP direto; se a rede/CORS falhar, tenta pela função /api/viacep.
+  const cache = new Map();
+  let viaProxy = false;
+  async function buscarCep(cep) {
+    if (cache.has(cep)) return cache.get(cep);
+    let d;
+    const direto = () => fetch(`https://viacep.com.br/ws/${cep}/json/`).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+    const proxy = () => fetch(`/api/viacep?cep=${cep}`).then(async (r) => { const j = await r.json().catch(() => null); if (!r.ok || (j && j.motivo)) throw new Error((j && j.motivo) || `HTTP ${r.status}`); return j; });
+    for (let t = 0; t < 2; t++) {
+      try { d = viaProxy ? await proxy() : await direto(); break; }
+      catch (e) {
+        if (!viaProxy) { try { d = await proxy(); viaProxy = true; break; } catch {} }
+        if (t === 1) throw new Error("Não foi possível conectar à ViaCEP. Tente novamente.");
+        await sleep(600);
+      }
+    }
+    const res = d && !d.erro ? d : null;
+    cache.set(cep, res);
+    return res;
+  }
+  function enderecoCompleto(d) {
+    const l1 = [d.logradouro, d.complemento, d.bairro].filter(Boolean).join(", ");
+    const l2 = [d.localidade, d.uf].filter(Boolean).join(" - ");
+    let e = [l1, l2].filter(Boolean).join(" - ");
+    if (d.cep) e = e ? `${e}, CEP ${d.cep}` : d.cep;
+    return e;
+  }
+
+  // ------------------------------------------------- geocodificação (mapa)
+  const geoCache = new Map();
+  async function geocodificar(d) {
+    const { logradouro: r, bairro: b, localidade: c, uf: u } = d;
+    const t = [];
+    if (r && b && c && u) t.push([`${r}, ${b}, ${c}, ${u}, Brasil`, "rua"]);
+    if (r && c && u) t.push([`${r}, ${c}, ${u}, Brasil`, "rua"]);
+    if (b && c && u) t.push([`${b}, ${c}, ${u}, Brasil`, "bairro"]);
+    if (c && u) t.push([`${c}, ${u}, Brasil`, "cidade"]);
+    if (u) t.push([`${u}, Brasil`, "estado"]);
+    for (const [q, nivel] of t) {
+      try {
+        let res = geoCache.get(q);
+        if (res === undefined) {
+          const r = await fetch(`https://nominatim.openstreetmap.org/search?${new URLSearchParams({ q, format: "json", limit: 1, countrycodes: "br" })}`, { headers: { Accept: "application/json" } });
+          if (!r.ok) continue;
+          const j = await r.json();
+          res = j && j[0] ? [+j[0].lat, +j[0].lon] : null;
+          geoCache.set(q, res);
+          if (!res) await sleep(1000); // limite de uso do Nominatim: 1 consulta por segundo
+        }
+        if (res) return { lat: res[0], lon: res[1], nivel };
+      } catch { /* tenta o próximo nível */ }
+    }
+    return null;
+  }
+  const ZOOM = { rua: 16, bairro: 14, cidade: 11, estado: 6 };
+  const AVISO = {
+    bairro: "Localização aproximada pelo bairro (rua não localizada no mapa).",
+    cidade: "Localização aproximada pela cidade (endereço exato não encontrado no mapa).",
+    estado: "Localização aproximada pelo estado (endereço não encontrado no mapa).",
+  };
+
+  // ----------------------------------------------------------------- abas
+  document.querySelector(".tabs").addEventListener("click", (e) => {
+    const b = e.target.closest(".tab"); if (!b) return;
+    document.querySelectorAll(".tab").forEach((x) => x.setAttribute("aria-selected", x === b));
+    document.querySelectorAll(".panel").forEach((p) => (p.hidden = p.id !== `p-${b.dataset.t}`));
+    if (mapa) setTimeout(() => mapa.invalidateSize(), 30);
+  });
+
+  // ===================================================== BUSCA INDIVIDUAL
+  const inp = $("cep");
+  inp.addEventListener("input", () => {
+    const d = limpar(inp.value).slice(0, 8);
+    inp.value = d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
+    if (d.length === 8 && document.activeElement === inp) $("f-individual").requestSubmit();
+  });
+  let mapa = null, consulta = 0;
+  const RECENTES_KEY = "buscacep:recentes";
+  const lerRecentes = () => { try { return JSON.parse(localStorage.getItem(RECENTES_KEY)) || []; } catch { return []; } };
+  function salvarRecente(cep) {
+    const l = [cep, ...lerRecentes().filter((c) => c !== cep)].slice(0, 6);
+    try { localStorage.setItem(RECENTES_KEY, JSON.stringify(l)); } catch {}
+    mostrarRecentes();
+  }
+  function mostrarRecentes() {
+    const l = lerRecentes();
+    $("recentes").innerHTML = l.length ? `<span class="cap" style="margin:0;align-self:center">Recentes:</span>` + l.map((c) => `<button type="button" data-cep="${c}">${fmtCep(c)}</button>`).join("") : "";
+  }
+  $("recentes").addEventListener("click", (e) => { const b = e.target.closest("[data-cep]"); if (b) { inp.value = fmtCep(b.dataset.cep); $("f-individual").requestSubmit(); } });
+
+  $("f-individual").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const out = $("o-individual"), cep = limpar(inp.value), id = ++consulta;
+    if (cep.length !== 8) { out.innerHTML = `<div class="msg bad">⚠️ CEP inválido. Digite os 8 números do CEP (ex.: 01310100).</div>`; return; }
+    out.innerHTML = `<div class="msg info"><span class="spin"></span>Consultando endereço…</div>`;
+    let d;
+    try { d = await buscarCep(cep); } catch (err) { if (id === consulta) out.innerHTML = `<div class="msg bad">❌ ${esc(err.message)}</div>`; return; }
+    if (id !== consulta) return;
+    if (!d) { out.innerHTML = `<div class="msg warn">🔍 CEP não encontrado. Verifique o número digitado.</div>`; return; }
+    salvarRecente(cep);
+    history.replaceState(null, "", `#cep=${cep}`);
+    const end = enderecoCompleto(d);
+    out.innerHTML = `<div class="result">
+      <div class="card">
+        <h3>📍 ${esc(d.logradouro || "Endereço encontrado")}</h3>
+        <div class="addr"><span id="endTxt">${esc(end)}</span><button class="copy" type="button" id="btnCopiar">Copiar</button></div>
+        <div class="kv">
+          <div><span>CEP</span><span class="mono">${esc(d.cep || "-")}</span></div>
+          <div><span>Logradouro</span><span>${esc(d.logradouro || "-")}</span></div>
+          <div><span>Complemento</span><span>${esc(d.complemento || "-")}</span></div>
+          <div><span>Bairro</span><span>${esc(d.bairro || "-")}</span></div>
+          <div><span>Cidade</span><span>${esc(d.localidade || "-")}</span></div>
+          <div><span>Estado</span><span>${esc(d.estado ? `${d.estado} (${d.uf})` : d.uf || "-")}</span></div>
+          <div><span>Região (DDD)</span><span class="mono">${esc(d.ddd || "-")}</span></div>
+          <div><span>IBGE</span><span class="mono">${esc(d.ibge || "-")}</span></div>
+        </div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column"><div id="mapa"><div class="msg info" style="margin:12px"><span class="spin"></span>Localizando no mapa…</div></div><div class="prec" id="prec"></div></div>
+    </div>`;
+    $("btnCopiar").onclick = async () => { try { await navigator.clipboard.writeText(end); $("btnCopiar").textContent = "Copiado ✓"; } catch { $("btnCopiar").textContent = "Selecione e copie"; } };
+
+    const g = await geocodificar(d);
+    if (id !== consulta) return;
+    if (mapa) { mapa.remove(); mapa = null; }
+    const el = $("mapa"); el.innerHTML = "";
+    if (!g) { el.innerHTML = `<div class="msg warn" style="margin:12px">Não foi possível localizar este endereço no mapa.</div>`; return; }
+    mapa = L.map(el, { scrollWheelZoom: false }).setView([g.lat, g.lon], ZOOM[g.nivel]);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' }).addTo(mapa);
+    const icone = L.divIcon({ className: "", html: `<div style="width:18px;height:18px;border-radius:50%;background:#38bdf8;border:3px solid #fff;box-shadow:0 0 0 6px rgba(56,189,248,.35)"></div>`, iconSize: [18, 18], iconAnchor: [9, 9] });
+    L.marker([g.lat, g.lon], { icon: icone }).addTo(mapa).bindPopup(`<b>${esc(d.logradouro || d.localidade)}</b><br>${esc(d.bairro || "")}${d.bairro ? " · " : ""}${esc(d.localidade)} - ${esc(d.uf)}`);
+    if (AVISO[g.nivel]) $("prec").textContent = `ℹ️ ${AVISO[g.nivel]}`;
+  });
+
+  // ======================================================== CSV / planilha
+  function csv(linhas, cols) {
+    const q = (v) => { const s = v == null ? "" : String(v); return /[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    return "﻿" + [cols.join(";"), ...linhas.map((l) => cols.map((c) => q(l[c])).join(";"))].join("\r\n");
+  }
+  function baixar(conteudo, nome) {
+    const url = URL.createObjectURL(new Blob([conteudo], { type: "text/csv;charset=utf-8" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: nome });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  const carimbo = () => { const d = new Date(), p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; };
+  function tabela(cols, linhas, classe) {
+    return `<div class="table-wrap"><table><thead><tr>${cols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${linhas.map((l) => `<tr>${cols.map((c) => `<td class="${classe ? classe(c, l) : ""}">${esc(l[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  }
+
+  function parseCsvTexto(txt) {
+    txt = txt.replace(/^﻿/, "");
+    const primeira = txt.split(/\r?\n/)[0] || "";
+    const sep = [";", ",", "\t", "|"].sort((a, b) => primeira.split(b).length - primeira.split(a).length)[0];
+    const linhas = []; let campo = "", linha = [], aspas = false;
+    for (let i = 0; i < txt.length; i++) {
+      const ch = txt[i];
+      if (aspas) { if (ch === '"') { if (txt[i + 1] === '"') { campo += '"'; i++; } else aspas = false; } else campo += ch; }
+      else if (ch === '"') aspas = true;
+      else if (ch === sep) { linha.push(campo); campo = ""; }
+      else if (ch === "\n" || ch === "\r") { if (ch === "\r" && txt[i + 1] === "\n") i++; linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
+      else campo += ch;
+    }
+    if (campo || linha.length) { linha.push(campo); linhas.push(linha); }
+    return linhas.filter((l) => l.some((c) => c.trim()));
+  }
+  let xlsxPronto = null;
+  function carregarXlsx() {
+    if (window.XLSX) return Promise.resolve();
+    if (!xlsxPronto) xlsxPronto = new Promise((ok, erro) => {
+      const s = Object.assign(document.createElement("script"), { src: "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js", onload: ok, onerror: () => { xlsxPronto = null; erro(new Error("Não foi possível carregar o leitor de .xlsx. Salve a planilha como .csv e tente de novo.")); } });
+      document.head.appendChild(s);
+    });
+    return xlsxPronto;
+  }
+  async function lerPlanilha(arq) {
+    let linhas;
+    if (/\.(xlsx|xls)$/i.test(arq.name)) {
+      await carregarXlsx();
+      const wb = XLSX.read(await arq.arrayBuffer(), { type: "array" });
+      linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: "" }).map((l) => l.map((c) => String(c ?? "")));
+    } else {
+      linhas = parseCsvTexto(await arq.text());
+    }
+    if (!linhas.length) return [];
+    const cab = linhas[0].map((c) => c.trim().toLowerCase());
+    let col = cab.findIndex((c) => c.includes("cep"));
+    let dados = linhas.slice(1);
+    if (col < 0) { col = 0; if (limpar(linhas[0][0]).length >= 7) dados = linhas; } // sem cabeçalho
+    return dados.map((l) => String(l[col] ?? "").trim()).filter(Boolean);
+  }
+
+  // ============================================================ BUSCA EM LOTE
+  const COLS_LOTE = ["CEP", "Endereço Completo", "Logradouro", "Bairro", "Cidade", "Estado", "DDD", "IBGE", "Status"];
+  let ceps = [], processando = false;
+  async function receberArquivo(arq) {
+    const out = $("o-lote");
+    if (!arq) return;
+    out.innerHTML = `<div class="msg info"><span class="spin"></span>Lendo ${esc(arq.name)}…</div>`;
+    try { ceps = await lerPlanilha(arq); } catch (e) { out.innerHTML = `<div class="msg bad">❌ Não foi possível ler a planilha: ${esc(e.message)}</div>`; return; }
+    prepararLote(arq.name);
+  }
+  function prepararLote(nome) {
+    const out = $("o-lote");
+    if (!ceps.length) { out.innerHTML = `<div class="msg warn">⚠️ Nenhum CEP encontrado na planilha.</div>`; return; }
+    out.innerHTML = `<div class="msg info">📄 ${esc(nome)} — <b>${ceps.length.toLocaleString("pt-BR")}</b> CEP(s) encontrados.${ceps.length > 2000 ? " Listas grandes levam alguns minutos." : ""}</div>
+      ${tabela(["CEP"], ceps.slice(0, 10).map((c) => ({ CEP: c })))}
+      ${ceps.length > 10 ? `<p class="cap">… e mais ${(ceps.length - 10).toLocaleString("pt-BR")} CEP(s)</p>` : ""}
+      <div class="actions"><button class="btn" id="btnProcessar">🚀 Processar planilha</button></div>`;
+    $("btnProcessar").onclick = processarLote;
+  }
+  async function processarLote() {
+    if (processando) return;
+    processando = true;
+    const out = $("o-lote"), total = ceps.length, res = new Array(total);
+    out.innerHTML = `<div class="progress"><i id="pbar"></i></div><div class="ptxt" id="ptxt">Iniciando…</div><div class="actions"><button class="btn ghost small" id="btnParar">Parar</button></div>`;
+    let parar = false, feitos = 0, prox = 0;
+    $("btnParar").onclick = () => { parar = true; };
+    async function worker() {
+      while (prox < total && !parar) {
+        const i = prox++, bruto = ceps[i], c = limpar(bruto);
+        let linha;
+        if (c.length !== 8) linha = { CEP: bruto, Status: "⚠️ Inválido" };
+        else {
+          try {
+            const d = await buscarCep(c);
+            linha = d ? { CEP: d.cep || fmtCep(c), "Endereço Completo": enderecoCompleto(d), Logradouro: d.logradouro, Bairro: d.bairro, Cidade: d.localidade, Estado: d.uf, DDD: d.ddd, IBGE: d.ibge, Status: "✅ Encontrado" } : { CEP: fmtCep(c), Status: "❌ Não encontrado" };
+          } catch { linha = { CEP: fmtCep(c), Status: "❌ Erro de conexão" }; }
+          await sleep(50);
+        }
+        res[i] = linha; feitos++;
+        $("pbar").style.width = `${(feitos / total) * 100}%`;
+        $("ptxt").textContent = `Processando ${feitos.toLocaleString("pt-BR")}/${total.toLocaleString("pt-BR")}`;
+      }
+    }
+    await Promise.all(Array.from({ length: 4 }, worker));
+    processando = false;
+    const linhas = res.filter(Boolean);
+    const conta = (s) => linhas.filter((l) => l.Status.includes(s)).length;
+    out.innerHTML = `${parar ? `<div class="msg warn">Processamento interrompido em ${linhas.length} de ${total} CEPs.</div>` : `<div class="msg ok">✅ Processamento concluído! ${linhas.length.toLocaleString("pt-BR")} CEP(s) processados.</div>`}
+      <div class="stats"><div class="stat">📊 Total<b>${linhas.length}</b></div><div class="stat">✅ Encontrados<b>${conta("Encontrado")}</b></div><div class="stat">❌ Não encontrados<b>${conta("Não encontrado") + conta("Erro")}</b></div><div class="stat">⚠️ Inválidos<b>${conta("Inválido")}</b></div></div>
+      <div class="actions" style="margin:0 0 14px"><button class="btn" id="btnBaixarLote">⬇️ Baixar resultados (.csv)</button><button class="btn ghost" id="btnNovo">Nova planilha</button></div>
+      ${tabela(COLS_LOTE, linhas, (c, l) => (c === "Status" ? (l.Status.includes("✅") ? "st-ok" : l.Status.includes("⚠️") ? "st-warn" : "st-bad") : ""))}`;
+    $("btnBaixarLote").onclick = () => baixar(csv(linhas, COLS_LOTE), `ceps_processados_${carimbo()}.csv`);
+    $("btnNovo").onclick = () => { ceps = []; $("o-lote").innerHTML = ""; $("arquivo").value = ""; $("drop").scrollIntoView({ behavior: "smooth", block: "center" }); };
+  }
+  $("arquivo").addEventListener("change", (e) => receberArquivo(e.target.files[0]));
+  const drop = $("drop");
+  ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => receberArquivo(e.dataTransfer.files[0]));
+  $("btnColar").onclick = () => { $("colarBox").hidden = !$("colarBox").hidden; if (!$("colarBox").hidden) $("colarTxt").focus(); };
+  $("btnUsarLista").onclick = () => { ceps = $("colarTxt").value.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean); prepararLote("Lista colada"); };
+
+  // ======================================================== FAIXA DE CEP
+  const COLS_FAIXA = ["CEP Inicial", "CEP Final", "Bairro", "Cidade", "Estado", "DDD", "IBGE"];
+  let faixaRodando = false;
+  $("f-faixa").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (faixaRodando) return;
+    const out = $("o-faixa"), si = $("fIni").value.trim(), sf = $("fFim").value.trim();
+    let passo = Math.max(1, Math.min(200, parseInt($("fPasso").value, 10) || 1));
+    if (!/^\d{1,5}$/.test(si) || !/^\d{1,5}$/.test(sf)) { out.innerHTML = `<div class="msg bad">⚠️ Informe apenas números nos campos de CEP inicial/final.</div>`; return; }
+    const ini = +si, fim = +sf;
+    if (ini > fim) { out.innerHTML = `<div class="msg bad">⚠️ O CEP inicial deve ser menor ou igual ao CEP final.</div>`; return; }
+    if (ini < 1000 || fim > 99999) { out.innerHTML = `<div class="msg bad">⚠️ Os CEPs devem estar entre 01000 e 99999.</div>`; return; }
+    let aviso = "";
+    if (Math.floor((fim - ini) / passo) + 1 > 500) { passo = Math.max(1, Math.ceil((fim - ini) / 499)); aviso = `<div class="msg info" style="margin-bottom:10px">ℹ️ Faixa muito ampla — passo ajustado automaticamente para ${passo} (limite de 500 consultas).</div>`; }
+    const pontos = []; for (let b = ini; b <= fim; b += passo) pontos.push(b);
+    const p5 = (n) => String(n).padStart(5, "0");
+
+    faixaRodando = true;
+    out.innerHTML = `${aviso}<div class="msg info">🔍 Buscando bairros na faixa ${p5(ini)}-000 a ${p5(fim)}-999 com passo ${passo}…</div><div class="progress"><i id="fbar"></i></div><div class="ptxt" id="ftxt"></div>`;
+    const res = []; let feitos = 0, prox = 0;
+    async function worker() {
+      while (prox < pontos.length) {
+        const b = pontos[prox++];
+        try {
+          const d = await buscarCep(`${p5(b)}000`);
+          if (d && d.bairro) res.push({ n: b, "CEP Inicial": `${p5(b)}-000`, "CEP Final": `${p5(b)}-999`, Bairro: d.bairro, Cidade: d.localidade, Estado: d.uf, DDD: d.ddd, IBGE: d.ibge });
+        } catch { /* ponto sem resposta: ignora */ }
+        feitos++;
+        $("fbar").style.width = `${(feitos / pontos.length) * 100}%`;
+        $("ftxt").textContent = `Consultando ${feitos}/${pontos.length}: ${p5(b)}-000`;
+        await sleep(50);
+      }
+    }
+    await Promise.all(Array.from({ length: 4 }, worker));
+    faixaRodando = false;
+    res.sort((a, b) => a.n - b.n);
+    if (!res.length) { out.innerHTML = `${aviso}<div class="msg warn">🔍 Nenhum bairro encontrado nessa faixa. Tente outra faixa de CEP ou um passo menor.</div>`; return; }
+    const cidades = new Set(res.map((r) => `${r.Cidade}/${r.Estado}`)).size, estados = new Set(res.map((r) => r.Estado)).size, bairros = new Set(res.map((r) => `${r.Bairro}/${r.Cidade}`)).size;
+    out.innerHTML = `${aviso}<div class="msg ok">✅ ${res.length} faixa(s) com bairro encontrado entre ${p5(ini)}-000 e ${p5(fim)}-999.</div>
+      <div class="stats"><div class="stat">🏘️ Bairros<b>${bairros}</b></div><div class="stat">🏙️ Cidades<b>${cidades}</b></div><div class="stat">📍 Estados<b>${estados}</b></div></div>
+      <div class="actions" style="margin:0 0 14px"><button class="btn" id="btnBaixarFaixa">⬇️ Baixar tabela (.csv)</button></div>
+      ${tabela(COLS_FAIXA, res)}`;
+    $("btnBaixarFaixa").onclick = () => baixar(csv(res, COLS_FAIXA), `bairros_${p5(ini)}_${p5(fim)}_${carimbo()}.csv`);
+  });
+
+  // ------------------------------------------------------------------ início
+  mostrarRecentes();
+  const h = new URLSearchParams(location.hash.slice(1)).get("cep");
+  if (h && limpar(h).length === 8) { inp.value = fmtCep(limpar(h)); $("f-individual").requestSubmit(); }
+})();
+</script>
+</body>
+</html>
